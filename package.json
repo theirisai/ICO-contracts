@@ -1,0 +1,26 @@
+{
+  "name": "proof-of-concept",
+  "version": "1.0.0",
+  "description": "",
+  "main": "truffle-config.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://gitlab.com/limelabs/iris-ai/proof-of-concept.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "zeppelin-solidity": "git+https://github.com/LimelabsTech/zeppelin-solidity.git"
+  },
+  "devDependencies": {
+    "solidity-coverage": "^0.4.14",
+    "web3": "^1.0.0-beta.27",
+    "truffle-hdwallet-provider": "0.0.3"
+  }
+}
