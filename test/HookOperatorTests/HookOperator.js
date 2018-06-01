@@ -1,5 +1,10 @@
+const IUserContract = artifacts.require("./IUserContract.sol");
+const UserContract = artifacts.require("./UserContract.sol");
+const UserContractProxy = artifacts.require("./UserContractProxy.sol");
+
 const ProjectInitializator = require("../ProjectInitializator");
 
+const expectThrow = require('./../util').expectThrow;
 const timeTravel = require('./../util').timeTravel;
 
 require("./../assertExtensions.js");
@@ -20,7 +25,7 @@ contract('HookOperator', function (accounts) {
 	let icoTokenContract;
 	let userFactoryContract;
 
-	xdescribe('Testing Setters', () => {
+	describe('Testing Setters', () => {
 
 		let contracts;
 
@@ -94,7 +99,7 @@ contract('HookOperator', function (accounts) {
 		});
 	});
 
-	xdescribe('Test Token Processes', () => {
+	describe('Test Token Processes', () => {
 
 		describe('OnTransfer methods', () => {
 
@@ -102,11 +107,50 @@ contract('HookOperator', function (accounts) {
 			let institutionInstance;
 			let curveCalculatorInstance;
 			let tokenPoolAddress;
+			let userFactoryContract;
+			let kycVerificationContract;
+			let userManagerContract;
+
+			const userOneAddress = accounts[1];
+			const userTwoAddress = accounts[2];
+
+			const userCreator = accounts[3];
+			const userManager = accounts[4];
+			
+			const icoToken = accounts[8];
+			const kycAdmin = accounts[9];
+
+			const initialTokens = 1000000000000000000; // 10 tokens
+			const tokensToSend = 1000000000000000000; // 1 tokens
+
+        	const USER_KYC_STATUS = {
+            	ANONIMNOUS: 0,
+            	SEMI_VERIFIED: 1,
+            	VERIFIED: 2,
+            	UNDEFINED: 3
+        	}
 
 			beforeEach(async () => {
 				contracts = await ProjectInitializator.initWithAddress(owner);
-				icoTokenContract = contracts.icoTokenContract;
-				hookOperatorContract = contracts.hookOperatorContract;
+				icoTokenContract = await contracts.icoTokenContract;
+				hookOperatorContract = await contracts.hookOperatorContract;
+				userFactoryContract = await contracts.userFactoryContract;
+				kycVerificationContract = await contracts.kycVerificationContract;
+				userManagerContract = await contracts.userManagerContract;
+
+				await hookOperatorContract.setICOToken(icoToken, {from: owner});
+
+            	await kycVerificationContract.setKYCUserOwner(kycAdmin, {from: owner});
+
+            	await userFactoryContract.setKYCVerificationInstance(kycVerificationContract.address, {from: owner});
+            	await userFactoryContract.setUserManagerAddress(userManagerContract.address, {from: owner});
+				await userFactoryContract.setUserCreator(userCreator, {from: owner});
+				
+				await userFactoryContract.createNewUser(userOneAddress, USER_KYC_STATUS.VERIFIED, {from: userCreator}); 
+				await hookOperatorContract.setOverBalanceLimitHolder(userOneAddress, true, {from: owner});
+
+				await userFactoryContract.createNewUser(userTwoAddress, USER_KYC_STATUS.VERIFIED, {from: userCreator}); 
+				await hookOperatorContract.setOverBalanceLimitHolder(userTwoAddress, true, {from: owner});
 			});
 
 			describe('OnTransfer', () => {
@@ -124,6 +168,61 @@ contract('HookOperator', function (accounts) {
 
 				it('should not process onTransfer with zero tokens amount parameter', async () => {
 					await assert.expectRevert(hookOperatorContract.onTransfer(owner, owner, 0, {from: owner}));
+				});
+
+				it('should throw onTransfer if user is blacklisted', async () => {
+					await hookOperatorContract.onMint(userOneAddress, initialTokens, {from: icoToken});
+					await hookOperatorContract.onMint(userTwoAddress, initialTokens, {from: icoToken});
+
+					let userAddress = await userFactoryContract.getUser(userOneAddress);
+            		let userInstance = await IUserContract.at(userAddress);
+
+            		let isBlacklisted = await userInstance.isUserBlacklisted();
+            		assert.equal(isBlacklisted, false, `At the beginning isBlacklisted should be false but it returned ${isBlacklisted}`);
+
+					await hookOperatorContract.onTransfer(userOneAddress, userTwoAddress, tokensToSend, {from: icoToken});
+
+					await kycVerificationContract.setUserBlacklistedStatus(userOneAddress, true, {from: kycAdmin});
+
+            		let isBlacklistedAfterUpdate = await userInstance.isUserBlacklisted();
+					assert.equal(isBlacklistedAfterUpdate, true, `isBlacklisted should be true but it returned ${isBlacklistedAfterUpdate}`);
+					
+					await expectThrow(hookOperatorContract.onTransfer(userOneAddress, userTwoAddress, tokensToSend, {from: icoToken}));
+				});
+
+				it('should throw onTransfer if user is banned', async () => {
+					await hookOperatorContract.onMint(userOneAddress, initialTokens, {from: icoToken});
+					await hookOperatorContract.onMint(userTwoAddress, initialTokens, {from: icoToken});
+
+					let userAddress = await userFactoryContract.getUser(userOneAddress);
+            		let userInstance = await IUserContract.at(userAddress);
+
+            		let isBanned = await userInstance.isUserBanned();
+            		assert.equal(isBanned, false, `At the beginning isBanned should be false but it returned ${isBanned}`);
+
+					await hookOperatorContract.onTransfer(userOneAddress, userTwoAddress, tokensToSend, {from: icoToken});
+
+					await kycVerificationContract.banUser(userOneAddress, {from: kycAdmin});
+
+            		let isBannedAfterUpdate = await userInstance.isUserBanned();
+					assert.equal(isBannedAfterUpdate, true, `isBlacklisted should be true but it returned ${isBannedAfterUpdate}`);
+					
+					await expectThrow(hookOperatorContract.onTransfer(userOneAddress, userTwoAddress, tokensToSend, {from: icoToken}));
+				});
+
+				it('should throw onMint if user is banned', async () => {
+					let userAddress = await userFactoryContract.getUser(userOneAddress);
+            		let userInstance = await IUserContract.at(userAddress);
+
+            		let isBanned = await userInstance.isUserBanned();
+					assert.equal(isBanned, false, `At the beginning isBanned should be false but it returned ${isBanned}`);
+					
+					await kycVerificationContract.banUser(userOneAddress, {from: kycAdmin});
+
+            		let isBannedAfterUpdate = await userInstance.isUserBanned();
+					assert.equal(isBannedAfterUpdate, true, `isBanned should be true but it returned ${isBannedAfterUpdate}`);
+
+					await expectThrow(hookOperatorContract.onMint(userOneAddress, initialTokens, {from: icoToken}));
 				});
 			});
 
@@ -143,17 +242,6 @@ contract('HookOperator', function (accounts) {
 
 				hookOperatorContract.setICOToken(icoToken, {from: owner});
 			});
-			
-			it('should process onMint', async () => {
-				let userManagerContract = contracts.userManagerContract;
-
-				let userExistingBeforeOnMint = await userFactoryContract.isUserExisting.call(userOne);
-				await hookOperatorContract.onMint(userOne, TRANSFERABLE_TOKENS, {from: icoToken});
-				let userExistingAfterOnMint = await userFactoryContract.isUserExisting.call(userOne);
-
-				await assert.equal(userExistingBeforeOnMint, false);
-				await assert.equal(userExistingAfterOnMint, true);
-			});
 
 			it('should not process onMint if the method caller is not the ico token contract', async () => {
 				await assert.expectRevert(
@@ -164,7 +252,7 @@ contract('HookOperator', function (accounts) {
 
 		describe('OnBurn', () => {
 			
-			xit('should process onBurn', async () => {
+			it('should process onBurn', async () => {
 
 			});
 
@@ -212,7 +300,7 @@ contract('HookOperator', function (accounts) {
 		});
 	});
 
-	xdescribe('Testing Temporary helper functions', () => {
+	describe('Testing Temporary helper functions', () => {
 		let contracts;
 
 		before(async () =>{

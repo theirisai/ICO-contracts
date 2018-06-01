@@ -434,80 +434,125 @@ contract('KYCVerification', function (accounts) {
         });
     });
 
-    xdescribe("Validate KYC user", () => {
+    describe("Testing Blacklisted User", () => {
+        const userCreator = accounts[3];
+        const userManager = accounts[4];
+
+        const USER_KYC_STATUS = {
+            ANONIMNOUS: 0,
+            SEMI_VERIFIED: 1,
+            VERIFIED: 2,
+            UNDEFINED: 3
+        }
+
         beforeEach(async () => {
-            kycVerification = await KYCVerification.new();
-            kycVerificationProxy = await KYCVerificationProxy.new(kycVerification.address);
-            kycVerificationContract = await IKYCVerification.at(kycVerificationProxy.address);
-            await kycVerificationContract.init();
+            let contracts = await ProjectInitializator.initWithAddress(owner, kycAdmin);
 
-            // Set up Oracle
-            let exchangeOracle = await ExchangeOracle.new(oracleInitialRate);
-            await kycVerificationContract.setExchangeOracle(exchangeOracle.address, {from: owner});
+            ICOTokenInstance = await contracts.icoTokenContract;
+            userFactoryContract = await contracts.userFactoryContract;
+            kycVerificationContract = await contracts.kycVerificationContract;
+
+            await kycVerificationContract.setKYCUserOwner(kycAdmin, {from: owner});
+
+            await userFactoryContract.setKYCVerificationInstance(kycVerificationContract.address, {from: owner});
+            await userFactoryContract.setUserManagerAddress(userManager, {from: owner});
+            await userFactoryContract.setUserCreator(userCreator, {from: owner});
+            await userFactoryContract.createNewUser(userOneAddress, USER_KYC_STATUS.ANONIMNOUS, {from: userCreator});            
         });
 
-        it("should throw when user make a transaction with amount bigger than the default one", async () => {
-            // Set KYC Verification default values
-            await kycVerificationContract.setTransactionMaxAmount(transactionMaxAmount, {from: owner}); // 1 ETH
-            await kycVerificationContract.setTransactionDailyMaxVolume(transactionDailyMaxVolume, {from: owner}); // 3 ETH 
-            await kycVerificationContract.setTransactionMonthlyMaxVolume(transactionMonthlyMaxVolume, {from: owner});// 9 ETH
-            await kycVerificationContract.setUserAccountMaxBalance(userAccountMaxBalance, {from: owner}); // 4 ETH
+        it("should set blacklisted user to true", async () => {
+            let userAddress = await userFactoryContract.getUser(userOneAddress);
+            let userInstance = await IUserContract.at(userAddress);
 
-            await expectThrow(ICOTokenInstance.transfer(userTwoAddress, AIURWei*100, {from: userOneAddress}));
+            let isBlacklisted = await userInstance.isUserBlacklisted();
+            assert.equal(isBlacklisted, false, `At the beginning isBlacklisted should be false but it returned ${isBlacklisted}`);
+
+            await kycVerificationContract.setUserBlacklistedStatus(userOneAddress, true, {from: kycAdmin});
+
+            let isBlacklistedAfterUpdate = await userInstance.isUserBlacklisted();
+            assert.equal(isBlacklistedAfterUpdate, true, `isBlacklisted should be true but it returned ${isBlacklistedAfterUpdate}`);
         });
 
-        it("should throw when user is about to have a daily volume bigger than the default one", async () => {
-            // Set KYC Verification default values
-            await kycVerificationContract.setTransactionMaxAmount("2000000000000000000", {from: owner}); // 2 ETH
-            await kycVerificationContract.setTransactionDailyMaxVolume("1000000000000000000", {from: owner}); // 1 ETH 
-            await kycVerificationContract.setTransactionMonthlyMaxVolume(transactionMonthlyMaxVolume, {from: owner});// 9 ETH
-            await kycVerificationContract.setUserAccountMaxBalance(userAccountMaxBalance, {from: owner}); // 4 ETH
+        it("should throw if the method caller is not the contract kyc admin", async () => {
+            let userAddress = await userFactoryContract.getUser(userOneAddress);
+            let userInstance = await IUserContract.at(userAddress);
 
-            await ICOTokenInstance.mint(userOneAddress, AIURWei); // 1000 AIUR tokens
-            await ICOTokenInstance.mint(userTwoAddress, AIURWei); // 1000 AIUR tokens
+            let isBlacklisted = await userInstance.isUserBlacklisted();
+            assert.equal(isBlacklisted, false, `At the beginning isBlacklisted should be false but it returned ${isBlacklisted}`);
 
-            let userAddress = await userFactoryContract.getUser(userTwoAddress);
-            let userContract = await UserContract.new(userAddress);
-
-            userContract.increaseDailyTransactionVolumeSending("900000000000000000000"); // 0.90 ETH == 900 AIUR tokens
-
-            await expectThrow(ICOTokenInstance.transfer(userTwoAddress, AIURWei, {from: userOneAddress}));
+            await expectThrow(kycVerificationContract.setUserBlacklistedStatus(userOneAddress, true, {from: nonOwner}));
         });
 
-        xit("should throw when user is about to have a monthly volume bigger than the default one", async () => {
-            // Set KYC Verification default values
-            await kycVerificationContract.setTransactionMaxAmount("2000000000000000000", {from: owner}); // 2 ETH
-            await kycVerificationContract.setTransactionDailyMaxVolume("2000000000000000000", {from: owner}); // 2 ETH 
-            await kycVerificationContract.setTransactionMonthlyMaxVolume("500000000000000000000", {from: owner});// 0.50 ETH
-            await kycVerificationContract.setUserAccountMaxBalance(userAccountMaxBalance, {from: owner}); // 4 ETH
-
-            await ICOTokenInstance.mint(userOneAddress, AIURWei); // 1 000 AIUR tokens
-            await ICOTokenInstance.mint(userTwoAddress, AIURWei); // 1 000 AIUR tokens
-
-            let userAddress = await userFactoryContract.getUser(userTwoAddress);
-            let userContract = await UserContract.new(userAddress);
-
-            userContract.increaseMonthlyTransactionVolume("500000000000000000000"); // 0.50 ETH
-
-            await expectThrow(ICOTokenInstance.transfer(userTwoAddress, AIURWei, {from: userOneAddress}));
+        it("should throw is the use doesn't exist", async () => {
+            await expectThrow(kycVerificationContract.setUserBlacklistedStatus(userTwoAddress, true, {from: kycAdmin}));
         });
 
-        xit("should throw when user is about to have a balance bigger than the allowed", async () => {
-            // Set KYC Verification default values
-            await kycVerificationContract.setTransactionMaxAmount("3000000000000000000", {from: owner}); // 3 ETH
-            await kycVerificationContract.setTransactionDailyMaxVolume("4000000000000000000", {from: owner}); // 4 ETH 
-            await kycVerificationContract.setTransactionMonthlyMaxVolume("6000000000000000000", {from: owner});// 6 ETH
-            await kycVerificationContract.setUserAccountMaxBalance("1000000000000000000", {from: owner}); // 1 ETH
+        it("should set isBlacklisted to false when user if fully verified", async () => {
+            let userAddress = await userFactoryContract.getUser(userOneAddress);
+            let userInstance = await IUserContract.at(userAddress);
 
-            await ICOTokenInstance.mint(userOneAddress, AIURWei); // 1 000 AIUR tokens
-            await ICOTokenInstance.mint(userTwoAddress, AIURWei); // 1 000 AIUR tokens
+            let isBlacklisted = await userInstance.isUserBlacklisted();
+            assert.equal(isBlacklisted, false, `At the beginning isBlacklisted should be false but it returned ${isBlacklisted}`);
 
-            let userAddress = await userFactoryContract.getUser(userTwoAddress);
-            let userContract = await UserContract.new(userAddress);
+            await kycVerificationContract.setUserBlacklistedStatus(userOneAddress, true, {from: kycAdmin});
 
-            userContract.increaseMonthlyTransactionVolume("500000000000000000000"); // 0.50 ETH
+            let isBlacklistedAfterUpdate = await userInstance.isUserBlacklisted();
+            assert.equal(isBlacklistedAfterUpdate, true, `isBlacklisted should be true but it returned ${isBlacklistedAfterUpdate}`);
 
-            await expectThrow(ICOTokenInstance.transfer(userTwoAddress, AIURWei, {from: userOneAddress}));
+            await userInstance.updateKYCStatus(USER_KYC_STATUS.VERIFIED, {from: userManager});
+
+            let isBlacklistedChangeAfterKYCUpdate = await userInstance.isUserBlacklisted();
+            assert.equal(isBlacklistedChangeAfterKYCUpdate, false, `isBlacklisted should be false after KYC status update to VERIFIED but it returned ${isBlacklistedChangeAfterKYCUpdate}`);
+        });
+    });
+
+    describe("Testing Banned User", () => {
+        const userCreator = accounts[3];
+        const userManager = accounts[4];
+
+        const USER_KYC_STATUS = {
+            ANONIMNOUS: 0,
+            SEMI_VERIFIED: 1,
+            VERIFIED: 2,
+            UNDEFINED: 3
+        }
+
+        beforeEach(async () => {
+            let contracts = await ProjectInitializator.initWithAddress(owner, kycAdmin);
+
+            ICOTokenInstance = await contracts.icoTokenContract;
+            userFactoryContract = await contracts.userFactoryContract;
+            kycVerificationContract = await contracts.kycVerificationContract;
+
+            await kycVerificationContract.setKYCUserOwner(kycAdmin, {from: owner});
+
+            await userFactoryContract.setKYCVerificationInstance(kycVerificationContract.address, {from: owner});
+            await userFactoryContract.setUserManagerAddress(userManager, {from: owner});
+            await userFactoryContract.setUserCreator(userCreator, {from: owner});
+            await userFactoryContract.createNewUser(userOneAddress, USER_KYC_STATUS.ANONIMNOUS, {from: userCreator});            
+        });
+
+        it("should ban user", async () => {
+            let userAddress = await userFactoryContract.getUser(userOneAddress);
+            let userInstance = await IUserContract.at(userAddress);
+
+            let isBanned = await userInstance.isUserBanned();
+            assert.equal(isBanned, false, `At the beginning isBanned should be false but it returned ${isBanned}`);
+
+            await kycVerificationContract.banUser(userOneAddress, {from: kycAdmin});
+
+            let isBannedAfterUpdate = await userInstance.isUserBanned();
+            assert.equal(isBannedAfterUpdate, true, `isBanned should be true but it returned ${isBannedAfterUpdate}`);
+        });
+
+        it("should throw if the method caller is not the contract kyc admin", async () => {
+            let userAddress = await userFactoryContract.getUser(userOneAddress);
+            let userInstance = await IUserContract.at(userAddress);
+
+            let isBanned = await userInstance.isUserBanned();
+            assert.equal(isBanned, false, `At the beginning isBanned should be false but it returned ${isBanned}`);
+
+            await expectThrow(kycVerificationContract.banUser(userOneAddress, {from: nonOwner}));
         });
     });
 

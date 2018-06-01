@@ -103,7 +103,7 @@ contract('Vesting', function (accounts) {
             });
         });
 
-        describe('Token Instance', () => {
+        describe('Set Token Instance', () => {
             
             let tokenInstance;
 

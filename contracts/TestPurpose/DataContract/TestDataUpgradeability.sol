@@ -4,18 +4,18 @@ import "./ITestDataUpgradeability.sol";
 import "./../../LinkedList/LinkedListContract.sol";
 import "./../../Upgradeability/OwnableUpgradeableImplementation/OwnableUpgradeableImplementation.sol";
 
-contract TestDataUpgradeability is ITestDataUpgradeability, OwnableUpgradeableImplementation, LinkedListContract  {
+contract TestDataUpgradeability is ITestDataUpgradeability, OwnableUpgradeableImplementation, LinkedListContract {
 
     uint256 public taxPercentage;
     uint256 public taxationPeriodInSeconds;
 
-    uint256 public defaultPercentage = 10;
+    uint256 public constant DEFAULT_PERCENTAGE = 10;
 
     /*
         The differences between the original data contract and test purposes one is only in the getTaxPercentage function
     */
     function getTaxPercentage() public view returns(uint256 _taxPercentage) {
-        return defaultPercentage;
+        return DEFAULT_PERCENTAGE;
     }
 
     function setTaxPercentage(uint256 _taxPercentage) public onlyUserManager {

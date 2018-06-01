@@ -42,6 +42,16 @@ contract HookOperator is IHookOperator, OwnableUpgradeableImplementation {
         _;
     } 
 
+    modifier isNotBlocked(address userAddress) {
+        bool isBlacklistedUser = userManager.isBlacklisted(userAddress);
+        bool isBannedUser = userManager.isBannedUser(userAddress);
+
+        require(isBlacklistedUser == false);
+        require(isBannedUser == false);
+
+        _;
+    }
+
     /**
         Setters
     */
@@ -92,11 +102,10 @@ contract HookOperator is IHookOperator, OwnableUpgradeableImplementation {
         return icoToken;
     }
 
-
     /**
         Main Functions
     */
-    function onTransfer(address from, address to, uint tokensAmount) public onlyICOToken nonZeroAddress(from) nonZeroAddress(to) {
+    function onTransfer(address from, address to, uint tokensAmount) public onlyICOToken nonZeroAddress(from) nonZeroAddress(to) isNotBlocked(from) isNotBlocked(to) {
         require(userManager.isUserPolicyCorrect(to));
         require(userManager.isUserPolicyCorrect(from));
         require(isInBalanceLimit(to, tokensAmount));
@@ -108,7 +117,7 @@ contract HookOperator is IHookOperator, OwnableUpgradeableImplementation {
         emit LogOnTransfer(from, to, tokensAmount);
     }
 
-    function onMint(address to, uint256 tokensAmount) public onlyICOToken nonZeroAddress(to) {
+    function onMint(address to, uint256 tokensAmount) public onlyICOToken nonZeroAddress(to) isNotBlocked(to) {
         require(userManager.isUserPolicyCorrect(to));
 
         uint256 kycStatusTo = userManager.isUserKYCVerified(to);

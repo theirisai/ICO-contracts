@@ -37,6 +37,8 @@ contract IUserManager is IOwnableUpgradeableImplementation {
 
     function isBlacklisted(address _userAddress) public view returns(bool _isBlacklisted);
 
+    function isBannedUser(address userAddress) public view returns(bool _isBannedUser);
+
     function updateGenerationRatio(uint256 _generationRatio, address userContractAddress) public;
 
     function updateLastTransactionTime(address _userAddress) public;

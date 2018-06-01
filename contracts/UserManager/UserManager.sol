@@ -92,6 +92,15 @@ contract UserManager is IUserManager, OwnableUpgradeableImplementation {
         return isBlacklistedUser;
     }
 
+    function isBannedUser(address userAddress) public view returns(bool _isBannedUser) {
+        require(userAddress != address(0));
+
+        IUserContract userContract = userFactoryContract.getUser(userAddress);
+        bool isBanned = userContract.isUserBanned();
+
+        return isBanned;
+    }
+
     function updateGenerationRatio(uint256 _generationRatio, address userContractAddress) public onlyHookOperator {
         require(userContractAddress != address(0));
 

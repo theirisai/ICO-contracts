@@ -35,7 +35,10 @@ contract('DataContract', function (accounts) {
 
     let dataInstance;
 
-    async function initDataContract(){
+    async function initDataContract() {
+        let linkedListInstance = await LinkedList.new();
+        DataContract.link("LinkedList", linkedListInstance.address);
+        
         let dataContract = await DataContract.new();
         let dataContractProxy = await DataContractProxy.new(dataContract.address);
         dataInstance = await IDataContract.at(dataContractProxy.address);
@@ -398,7 +401,7 @@ contract('DataContract', function (accounts) {
 		});
 	});
 
-    xdescribe('Upgradeability', () => {
+    describe('Upgradeability', () => {
 
         let newImplementationInstance;
         const NEW_TAX_PERCENTAGE = 10;
@@ -410,22 +413,26 @@ contract('DataContract', function (accounts) {
             
             DataContractTest.link("LinkedList", linkedListInstance.address);
             newImplementationInstance = await DataContractTest.new({from: OWNER});
-		});
+        });
 
-        it('should upgrade the contract', async () => {
+        it('should keep the data state after upgrade', async () => {
             await dataInstance.setUserFactory(USER_FACTORY, {from: OWNER});
             await dataInstance.add(USER_ONE, {from: USER_FACTORY});
 
             await dataInstance.upgradeImplementation(newImplementationInstance.address, {from: OWNER});
-
             let upgradedDataContract = await IDataContractTest.at(dataInstance.address);
 
             let userAddress = await upgradedDataContract.peek(USER_ONE);
-            let newImplementationTaxPercentage = await upgradedDataContract.getTaxPercentage();
-
-            console.log(newImplementationTaxPercentage.toString(10)); // ask kris
 
             assert.strictEqual(userAddress, USER_ONE, "The contract state was not saved on upgrade");
+        });
+
+        it('should add new functionality after upgrade', async () => {
+            await dataInstance.upgradeImplementation(newImplementationInstance.address, {from: OWNER});
+            let upgradedDataContract = await IDataContractTest.at(dataInstance.address);
+
+            let newImplementationTaxPercentage = await upgradedDataContract.getTaxPercentage();
+
             assert.bigNumberEQNumber(newImplementationTaxPercentage, NEW_TAX_PERCENTAGE, "The upgrade is not update the contract logic");
         });
 

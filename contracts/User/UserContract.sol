@@ -145,7 +145,6 @@ contract UserContract is IUserContract, SharedStorage {
         emit LogSettedGenerationRatio(generationRatio);
     }
     
-    // onlyKYCContract - add
     function updateKYCStatus(uint256 newKYCStatus) external onlyUserManagerContract {
         require(newKYCStatus <= uint256(Status.VERIFIED));
 

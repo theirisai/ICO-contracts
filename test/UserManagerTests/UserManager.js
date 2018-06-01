@@ -36,7 +36,7 @@ contract('UserManager', function (accounts) {
 			userFactoryContract = contracts.userFactoryContract;
 		});
 
-		xdescribe('Testing Data Contract setter', () => {
+		describe('Testing Data Contract setter', () => {
 			it('should set data contract', async () => {
 				await userManagerContract.setDataContract(_dataContract.address, {from: owner});
 
@@ -75,7 +75,7 @@ contract('UserManager', function (accounts) {
 			});
 		});
 
-		xdescribe('Testing User Factory setter', () => {
+		describe('Testing User Factory setter', () => {
 			it('should set User Factory Contract', async () => {
 				await userManagerContract.setUserFactoryContract(userFactoryContract.address, {from: owner});
 
@@ -92,7 +92,7 @@ contract('UserManager', function (accounts) {
 			});
 		});
 
-		xdescribe('Testing Hook Operator setter', () => {
+		describe('Testing Hook Operator setter', () => {
 			it('should set hook operator contract', async () => {
 				await userManagerContract.setHookOperatorContract(hookOperatorContract.address, {from: owner});
 
@@ -106,39 +106,6 @@ contract('UserManager', function (accounts) {
 
 			it('should not process setHookOperatorContract when input parameter is an invalid address', async () => {
 				await expectThrow(userManagerContract.setHookOperatorContract("0x0", {from: owner}));
-			});
-		});
-
-		describe('Testing User functions', () => {
-			it('should get the correct user contract address', async () => {
-				let userFactory = await contracts.userFactoryContract;
-            	await userFactory.setUserManagerAddress(USER_MANAGER, {from: owner});
-            	await userFactory.createNewUser(userOneAddress, {from: USER_MANAGER});
-
-            	let userContractAddress = await userFactory.getUser(userOneAddress);
-				
-				let userContract = await userManagerContract.getUserContractAddress(userOneAddress);
-
-				assert.equal(userContract, userContractAddress, `User contract address should be ${userContractAddress} but returned ${userContract}`);
-			});
-
-			it('should throw when it is passed invalid address to getUserContractAddress', async () => {
-				await expectThrow(userManagerContract.getUserContractAddress("0x0", {from: owner}));
-			});
-
-			it('should last transaction time', async () => {
-            	await userFactoryContract.setUserManagerAddress(USER_MANAGER, {from: owner});
-				await userFactoryContract.createNewUser(userFourAddress, {from: USER_MANAGER});
-				
-				let userContractAddress = await userFactoryContract.getUser(userOneAddress);
-				let userInstance = await IUserContract.at(userContractAddress);
-
-				await userFactoryContract.setUserManagerAddress(userManagerContract.address, {from: owner});
-
-				await userManagerContract.setUserFactoryContract(userFactoryContract.address, {from: owner});
-				await userManagerContract.setHookOperatorContract(HOOK_OPERATOR, {from: owner});
-				await userManagerContract.updateLastTransactionTime(userFourAddress, {from: HOOK_OPERATOR});
-
 			});
 		});
 	});

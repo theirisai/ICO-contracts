@@ -16,6 +16,4 @@ contract IDataContract is IOwnableUpgradeableImplementation, ILinkedListContract
     function getTaxationPeriodInSeconds() public view returns(uint256 _taxationPeriodInSeconds);
 
     function setTaxationPeriodInSeconds(uint256 _taxationPeriodInSeconds) public;
-    
-    function setUserManager(address _HookOperatorServiceContractAddress) public;
 }

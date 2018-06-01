@@ -16,6 +16,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "truffle-hdwallet-provider-privkey": "^0.2.0",
     "zeppelin-solidity": "git+https://github.com/LimelabsTech/zeppelin-solidity.git"
   },
   "devDependencies": {
