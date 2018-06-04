@@ -26,7 +26,7 @@ contract RefundVault is Ownable {
     event RefundsEnabled();
     event Refunded(address indexed beneficiary, uint256 weiAmount);
 
-    function RefundVault(address _wallet) public {
+    constructor(address _wallet) public {
         require(_wallet != address(0));
         
         wallet = _wallet;
@@ -43,15 +43,15 @@ contract RefundVault is Ownable {
         require(state == State.Active);
         
         state = State.Closed;
-        Closed();
-        wallet.transfer(this.balance);
+        emit Closed();
+        wallet.transfer(address(this).balance);
     }
 
     function enableRefunds() onlyOwner public {
         require(state == State.Active);
 
         state = State.Refunding;
-        RefundsEnabled();
+        emit RefundsEnabled();
     }
 
     function refund(address investor) public {
@@ -67,6 +67,6 @@ contract RefundVault is Ownable {
         
         totalDeductedValue = totalDeductedValue.add(deductedValue);
 
-        Refunded(investor, depositedValue);
+        emit Refunded(investor, depositedValue);
     }
 }

@@ -1,4 +1,4 @@
-let testPrivateKey = '';
+let testPrivateKey = '2956b7afa2b93c048f2281be59a5d0ecaf247c5f82430a2209143c1e973c5b82';
 let infuraRopsten = 'https://ropsten.infura.io/H4UAAWyThMPs2WB9LsHD';
 
 const HDWalletProvider = require("truffle-hdwallet-provider-privkey");

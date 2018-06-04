@@ -81,6 +81,10 @@ contract TestUserUpgradeability is ITestUserUpgradeability, SharedStorage {
         _;
     }
 
+    function setAge(uint newAge) public {
+        userAge = newAge;
+    }
+
     // Below method purpose is for upgradeability test
     function getAge() public view returns(uint256) {
         return userAge;

@@ -6,7 +6,7 @@ import "./UserFactory/IUserFactory.sol";
 contract UserContractProxy is Forwardable {
     IUserFactory userFactoryContract;
 
-    function UserContractProxy(address _userFactoryAddress) public {
+    constructor(address _userFactoryAddress) public {
         require(_userFactoryAddress != address(0));
     
         userFactoryContract = IUserFactory(_userFactoryAddress);
@@ -18,6 +18,6 @@ contract UserContractProxy is Forwardable {
     */
     function () payable public {
         address userImplAddress = userFactoryContract.getImplAddress();
-        delegatedFwd(userImplAddress, msg.data);
+        delegatedFwd(userImplAddress);
     }
 }

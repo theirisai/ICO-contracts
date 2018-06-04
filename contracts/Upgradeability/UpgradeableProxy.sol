@@ -9,7 +9,7 @@ contract UpgradeableProxy is SharedStorage, Forwardable {
     *      can update the reference, which effectively upgrades the contract
     * @param _contractImpl Address of the contract used as implementation
     */
-    function UpgradeableProxy(address _contractImpl) public {
+    constructor(address _contractImpl) public {
         contractImplementation = _contractImpl;
     }
 
@@ -18,6 +18,6 @@ contract UpgradeableProxy is SharedStorage, Forwardable {
     * @return Any bytes32 value the implementation returns
     */
     function () payable public {
-        delegatedFwd(contractImplementation, msg.data);
+        delegatedFwd(contractImplementation);
     }
 }

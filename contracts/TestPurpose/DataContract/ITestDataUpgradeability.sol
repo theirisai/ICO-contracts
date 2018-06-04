@@ -9,6 +9,8 @@ contract ITestDataUpgradeability is IOwnableUpgradeableImplementation, ILinkedLi
     event LogSettedTaxPercentage(uint256 _taxPercentage);
     event LogSeetedTaxationPeriodInSecond(uint256 _taxationPeriodInSeconds);
 
+    function setPercentageDelimiter(uint newPercentageDelimiter) public;
+
     function getTaxPercentage() public view returns(uint256 _taxPercentage);
 
     function setTaxPercentage(uint256 _taxPercentage) public;

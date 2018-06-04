@@ -1,9 +1,16 @@
 pragma solidity ^0.4.21;
 
-import "./../Upgradeability/OwnableUpgradeableImplementation/IOwnableUpgradeableImplementation.sol";
-import "./../Oracle/ExchangeOracle.sol";
+import "./../../Upgradeability/OwnableUpgradeableImplementation/IOwnableUpgradeableImplementation.sol";
+import "./../../Oracle/ExchangeOracle.sol";
 
-contract IKYCVerification is IOwnableUpgradeableImplementation {
+contract ITestKYCValidationUpgradeability is IOwnableUpgradeableImplementation {
+
+    // Below two functions are added for testing upgradeability purpose
+    function getMaxBalanceVerifiedUser() public view returns(uint256);
+
+    function setMaxBalanceVerifiedUser(uint256 maxBalance) public;
+
+
     /**
         Daily limit - Anonymous
     */
@@ -116,9 +123,4 @@ contract IKYCVerification is IOwnableUpgradeableImplementation {
     function setUserFactory(address _userFactoryContractAddress) public;
 
     function getUserFactoryContractAddress() public view returns(address _userFactoryContractAddress);
-
-    /**
-        Update user KYC status
-    */
-    function updateUserKYCStatus(address userAddress, uint256 kycStatus) public;
 }

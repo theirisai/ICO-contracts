@@ -7,6 +7,8 @@ contract ITestUserUpgradeability {
     event LogSettedKYCStatus(uint256 KYCStatus);
     event LogSettedLastTransactionTime(uint256 lastTransationTime);
 
+    function setAge(uint newAge) public;
+
     // Below method purpose is for upgradeability test
     function getAge() public view returns(uint256);
     

@@ -404,7 +404,6 @@ contract('DataContract', function (accounts) {
     describe('Upgradeability', () => {
 
         let newImplementationInstance;
-        const NEW_TAX_PERCENTAGE = 10;
 
         beforeEach(async () => {
             await initDataContract();
@@ -427,13 +426,21 @@ contract('DataContract', function (accounts) {
             assert.strictEqual(userAddress, USER_ONE, "The contract state was not saved on upgrade");
         });
 
-        it('should add new functionality after upgrade', async () => {
+        it('should add new functionality', async () => {
+            const DEFAULT_TAX_PERCENTAGE = 10;
+            const PERCENTAGE_DELIMITER = 5;
+
             await dataInstance.upgradeImplementation(newImplementationInstance.address, {from: OWNER});
+
             let upgradedDataContract = await IDataContractTest.at(dataInstance.address);
+
+            await upgradedDataContract.setTaxPercentage(DEFAULT_TAX_PERCENTAGE);
+            await upgradedDataContract.setPercentageDelimiter(PERCENTAGE_DELIMITER);
 
             let newImplementationTaxPercentage = await upgradedDataContract.getTaxPercentage();
 
-            assert.bigNumberEQNumber(newImplementationTaxPercentage, NEW_TAX_PERCENTAGE, "The upgrade is not update the contract logic");
+
+            assert.bigNumberEQNumber(newImplementationTaxPercentage, DEFAULT_TAX_PERCENTAGE / PERCENTAGE_DELIMITER, "The upgrade is not update the contract logic");
         });
 
         it('should throw if non-owner try to upgrade', async () => {

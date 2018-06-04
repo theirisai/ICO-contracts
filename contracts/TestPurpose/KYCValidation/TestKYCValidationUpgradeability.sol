@@ -1,15 +1,15 @@
 pragma solidity ^0.4.21;
 
-import "./IKYCVerification.sol";
-import "./../User/IUserContract.sol";
-import "./../HookOperator/IHookOperator.sol";
-import "./../User/UserFactory/IUserFactory.sol";
-import "./../Upgradeability/OwnableUpgradeableImplementation/OwnableUpgradeableImplementation.sol";
+import "./ITestKYCValidationUpgradeability.sol";
+import "./../../User/IUserContract.sol";
+import "./../../HookOperator/IHookOperator.sol";
+import "./../../User/UserFactory/IUserFactory.sol";
+import "./../../Upgradeability/OwnableUpgradeableImplementation/OwnableUpgradeableImplementation.sol";
 
-import "./../Oracle/ExchangeOracle.sol";
-import "./../../node_modules/zeppelin-solidity/contracts/math/SafeMath.sol";
+import "./../../Oracle/ExchangeOracle.sol";
+import "./../../../node_modules/zeppelin-solidity/contracts/math/SafeMath.sol";
 
-contract KYCVerification is IKYCVerification, OwnableUpgradeableImplementation {
+contract TestKYCValidationUpgradeability is ITestKYCValidationUpgradeability, OwnableUpgradeableImplementation {
     using SafeMath for uint256;
 
     /**
@@ -33,10 +33,23 @@ contract KYCVerification is IKYCVerification, OwnableUpgradeableImplementation {
 
     address public kycVerificationOwner;
 
+    // Added for testing upgradeability purpose
+    uint256 public maxBalanceVerifiedUser;
+
+
     modifier onlyKYCAdmin() {
         require(kycVerificationOwner == msg.sender);
 
         _;
+    }
+
+    // Below two functions are added for testing upgradeability purpose
+    function getMaxBalanceVerifiedUser() public view returns(uint256) {
+        return maxBalanceVerifiedUser;
+    }
+
+    function setMaxBalanceVerifiedUser(uint256 maxBalance) public {
+        maxBalanceVerifiedUser = maxBalance;
     }
 
     /**
@@ -311,17 +324,5 @@ contract KYCVerification is IKYCVerification, OwnableUpgradeableImplementation {
 
     function getUserFactoryContractAddress() public view returns(address _userFactoryContractAddress) {
         return address(userFactory);
-    }
-
-    /**
-        Update user KYC status
-    */
-    function updateUserKYCStatus(address userAddress, uint256 kycStatus) public onlyKYCAdmin {
-        require(userAddress != address(0));
-
-        address userContractAddress = userFactory.getUser(userAddress);
-        IUserContract user = IUserContract(userContractAddress);
-
-        user.updateKYCStatus(kycStatus);
     }
 }

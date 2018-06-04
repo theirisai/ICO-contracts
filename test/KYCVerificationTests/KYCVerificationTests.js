@@ -10,8 +10,14 @@ const UserContractProxy = artifacts.require("./UserContractProxy.sol");
 
 const ICOToken = artifacts.require("./ICOTokenExtended.sol");
 
+const TestKYCVerification = artifacts.require("./TestPurpose/KYCValidation/TestKYCValidationUpgradeability.sol");
+const ITestKYCVerification = artifacts.require("./TestPurpose/KYCValidation/ITestKYCValidationUpgradeability.sol");
+
 const expectThrow = require('./../util').expectThrow;
 const getEvent = require('./../util').getEvent;
+const timeTravel = require('./../util').timeTravel;
+
+require("./../assertExtensions");
 
 const ProjectInitializator = require("./../ProjectInitializator");
 
@@ -45,18 +51,23 @@ contract('KYCVerification', function (accounts) {
     const transactionMonthlyLimitSemiVerified = (560 * token) / oracleInitialRate; // 15 tokens AIUR -> ETH 
     const maxBalanceSemiVerifiedUser = (280 * token) / oracleInitialRate; // 15 tokens AIUR -> ETH 
 
+    let contracts;
     let ICOTokenInstance;
     let userFactoryContract;
     let kycVerificationContract;
 
-    before(async () => {
-        let contracts = await ProjectInitializator.initWithAddress(owner, kycAdmin);
+    async function instantiateContracts() {
+        contracts = await ProjectInitializator.initWithAddress(owner, kycAdmin);
 
         ICOTokenInstance = await contracts.icoTokenContract;
         userFactoryContract = await contracts.userFactoryContract;
         kycVerificationContract = await contracts.kycVerificationContract;
 
         await kycVerificationContract.setKYCUserOwner(kycAdmin, {from: owner});
+    }
+
+    before(async () => {
+        await instantiateContracts();
 	});
 
     describe("Testing KYC Setters", () => {
@@ -434,6 +445,89 @@ contract('KYCVerification', function (accounts) {
         });
     });
 
+    describe("Testing valid KYC user sender/receiver function", () => {
+        const userCreator = accounts[3];
+        const userManager = accounts[4];
+        const hookOperatorAddress = accounts[5];
+
+        const USER_KYC_STATUS = {
+            ANONIMNOUS: 0,
+            SEMI_VERIFIED: 1,
+            VERIFIED: 2,
+            UNDEFINED: 3
+        }
+
+        const WEEK = 7 * 24 * 60 * 60;
+
+        beforeEach(async () => {
+            await instantiateContracts();
+
+            /**
+             * Anonymous
+            */
+           await kycVerificationContract.setDailyLimitForAnonymousUsers(transactionsDailyLimitAnonymous, {from: kycAdmin});
+           await kycVerificationContract.setWeeklyLimitForAnonymousUsers(transactionWeeklyLimitAnonymous, {from: kycAdmin});
+           await kycVerificationContract.setMonthlyLimitForAnonymousUsers(transactionMonthlyLimitAnonymous, {from: kycAdmin});
+           await kycVerificationContract.setMaxBalanceLimitForAnonymousUsers(maxBalanceAnonymousUser, {from: kycAdmin});
+
+           /**
+            * Semi Verified
+           */
+           await kycVerificationContract.setDailyLimitForSemiVerifiedUsers(transactionsDailyLimitSemiVerified, {from: kycAdmin});
+           await kycVerificationContract.setWeeklyLimitForSemiVerifiedUsers(transactionWeeklyLimitSemiVerified, {from: kycAdmin});
+           await kycVerificationContract.setMonthlyLimitForSemiVerifiedUsers(transactionMonthlyLimitSemiVerified, {from: kycAdmin});
+           await kycVerificationContract.setMaxBalanceLimitForSemiVerifiedUsers(maxBalanceSemiVerifiedUser, {from: kycAdmin});
+
+           await kycVerificationContract.setKYCUserOwner(kycAdmin, {from: owner});
+
+           await userFactoryContract.setKYCVerificationInstance(kycVerificationContract.address, {from: owner});
+           await userFactoryContract.setUserManagerAddress(userManager, {from: owner});
+           await userFactoryContract.setUserCreator(userCreator, {from: owner});
+           await userFactoryContract.setHookOperatorAddress(hookOperatorAddress, {from: owner});
+        });
+
+        it("should not throw if all requires are valid", async () => {
+            await userFactoryContract.createNewUser(userOneAddress, USER_KYC_STATUS.ANONIMNOUS, {from: userCreator});
+
+            let tokensToSend = (2 * token); // 15 AIUR tokens
+            let userAddress = await userFactoryContract.getUser(userOneAddress);
+
+            await kycVerificationContract.isValidKYCUserSender(userAddress, tokensToSend, USER_KYC_STATUS.ANONIMNOUS);
+        });
+
+        it("should throw when weekly limit will be passed", async () => {
+            await userFactoryContract.createNewUser(userOneAddress, USER_KYC_STATUS.ANONIMNOUS, {from: userCreator});
+
+            // Weekly limit is 60 AIUR Tokens
+            let tokensToIncrease = (58 * token); // 58 AIUR tokens
+            let tokensToSend = (8 * token); // 8 AIUR tokens
+
+            let userAddress = await userFactoryContract.getUser(userOneAddress);
+            let userInstance = await IUserContract.at(userAddress);
+
+            await userInstance.increaseDailyTransactionVolumeSending(tokensToIncrease, {from: hookOperatorAddress});
+            await expectThrow(kycVerificationContract.isValidKYCUserSender(userAddress, tokensToSend, USER_KYC_STATUS.ANONIMNOUS));
+        });
+
+        it("should not throw when weekly limit was passed the previous week", async () => {
+            await userFactoryContract.createNewUser(userTwoAddress, USER_KYC_STATUS.ANONIMNOUS, {from: userCreator});
+
+            // Weekly limit is 60 AIUR Tokens
+            let tokensToIncrease = (58 * token); // 58 AIUR tokens
+            let tokensToSend = (8 * token); // 8 AIUR tokens
+
+            let userAddress = await userFactoryContract.getUser(userTwoAddress);
+            let userInstance = await IUserContract.at(userAddress);
+
+            await userInstance.increaseDailyTransactionVolumeSending(tokensToIncrease, {from: hookOperatorAddress});
+            await expectThrow(kycVerificationContract.isValidKYCUserSender(userAddress, tokensToSend, USER_KYC_STATUS.ANONIMNOUS));
+
+            await timeTravel(web3, WEEK);
+
+            await kycVerificationContract.isValidKYCUserSender(userAddress, tokensToSend, USER_KYC_STATUS.ANONIMNOUS);
+        });
+    });
+
     describe("Testing Blacklisted User", () => {
         const userCreator = accounts[3];
         const userManager = accounts[4];
@@ -499,7 +593,10 @@ contract('KYCVerification', function (accounts) {
             let isBlacklistedAfterUpdate = await userInstance.isUserBlacklisted();
             assert.equal(isBlacklistedAfterUpdate, true, `isBlacklisted should be true but it returned ${isBlacklistedAfterUpdate}`);
 
-            await userInstance.updateKYCStatus(USER_KYC_STATUS.VERIFIED, {from: userManager});
+            let kycVerificationContractAddress = accounts[7];
+            await userFactoryContract.setKYCVerificationInstance(kycVerificationContractAddress, {from: owner});
+
+            await userInstance.updateKYCStatus(USER_KYC_STATUS.VERIFIED, {from: kycVerificationContractAddress});
 
             let isBlacklistedChangeAfterKYCUpdate = await userInstance.isUserBlacklisted();
             assert.equal(isBlacklistedChangeAfterKYCUpdate, false, `isBlacklisted should be false after KYC status update to VERIFIED but it returned ${isBlacklistedChangeAfterKYCUpdate}`);
@@ -566,6 +663,94 @@ contract('KYCVerification', function (accounts) {
 
         it("should throw if non owner is trying to set kyc owner", async () => {
             await expectThrow(kycVerificationContract.setKYCUserOwner(userTwoAddress, {from: nonOwner}));
+        });
+    });
+
+    describe("Updating User KYC status", () => {
+        const userCreator = accounts[3];
+
+        const USER_KYC_STATUS = {
+            ANONIMNOUS: 0,
+            SEMI_VERIFIED: 1,
+            VERIFIED: 2,
+            UNDEFINED: 3
+        }
+
+        let userManager;
+
+        beforeEach(async () => {
+            let contracts = await ProjectInitializator.initWithAddress(owner, kycAdmin);
+
+            ICOTokenInstance = await contracts.icoTokenContract;
+            userFactoryContract = await contracts.userFactoryContract;
+            kycVerificationContract = await contracts.kycVerificationContract;
+            userManager = await contracts.userManagerContract;
+
+            await kycVerificationContract.setKYCUserOwner(kycAdmin, {from: owner});
+
+            await userFactoryContract.setKYCVerificationInstance(kycVerificationContract.address, {from: owner});
+            await userFactoryContract.setUserManagerAddress(userManager.address, {from: owner});
+            await userFactoryContract.setUserCreator(userCreator, {from: owner});
+            await userFactoryContract.createNewUser(userOneAddress, USER_KYC_STATUS.ANONIMNOUS, {from: userCreator});            
+        });
+
+        it("should update kyc status", async () => {
+            let userAddress = await userFactoryContract.getUser(userOneAddress);
+            let userInstance = await IUserContract.at(userAddress);
+
+            let userCurrentKYCStatus = await userManager.isUserKYCVerified(userOneAddress);
+            assert.equal(userCurrentKYCStatus, USER_KYC_STATUS.ANONIMNOUS, `Invalid KYC status should be ${USER_KYC_STATUS.ANONIMNOUS} but returned ${userCurrentKYCStatus}`);
+
+            await kycVerificationContract.updateUserKYCStatus(userOneAddress, USER_KYC_STATUS.SEMI_VERIFIED, {from: kycAdmin});
+
+            let userUpdatedKYCStatus = await userManager.isUserKYCVerified(userOneAddress);
+            assert.equal(userUpdatedKYCStatus, USER_KYC_STATUS.SEMI_VERIFIED, `Invalid KYC status should be ${USER_KYC_STATUS.SEMI_VERIFIED} but returned ${userUpdatedKYCStatus}`);
+        });
+
+        it("should throw if the method caller is not the contract kyc admin", async () => {
+            await expectThrow(kycVerificationContract.updateUserKYCStatus(userOneAddress, USER_KYC_STATUS.SEMI_VERIFIED, {from: nonOwner}));
+        });
+
+        it("should throw if user address is invalid", async () => {
+            await expectThrow(kycVerificationContract.updateUserKYCStatus("0x0", USER_KYC_STATUS.SEMI_VERIFIED, {from: kycAdmin}));
+        });
+    });
+
+    describe('Upgradeability', () => {
+
+        let newImplementationInstance;
+
+        beforeEach(async () => {
+            newImplementationInstance = await TestKYCVerification.new();
+        });
+        
+        it('should keep the data state', async () => {
+            const TRANSACTION_DAILY_LIMIT = 10; // 10 tokens
+            await kycVerificationContract.setDailyLimitForAnonymousUsers(TRANSACTION_DAILY_LIMIT, {from: kycAdmin});
+
+            await kycVerificationContract.upgradeImplementation(newImplementationInstance.address, {from: owner})
+            let upgradedContract = await ITestKYCVerification.at(kycVerificationContract.address);
+
+            let transactionDailyLimit = await upgradedContract.getDailyLimitForAnonymousUsers();
+
+            assert.bigNumberEQNumber(transactionDailyLimit, TRANSACTION_DAILY_LIMIT);
+        });
+
+        it('should add new functionality', async () => {
+            const VERIFIED_USER_MAX_BALANCE = 20; // 20 tokens
+            await kycVerificationContract.upgradeImplementation(newImplementationInstance.address, {from: owner})
+            let upgradedContract = await ITestKYCVerification.at(kycVerificationContract.address);
+
+            await upgradedContract.setMaxBalanceVerifiedUser(VERIFIED_USER_MAX_BALANCE);
+            let verifiedUserMaxBalance = await upgradedContract.getMaxBalanceVerifiedUser();
+
+            assert.bigNumberEQNumber(verifiedUserMaxBalance, VERIFIED_USER_MAX_BALANCE);
+        });
+
+        it('should throw if non-owner try to upgrade', async () => {
+            await expectThrow(
+                kycVerificationContract.upgradeImplementation(newImplementationInstance.address, {from: nonOwner})
+            );
         });
     });
 });

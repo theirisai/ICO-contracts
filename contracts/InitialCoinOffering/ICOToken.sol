@@ -10,6 +10,6 @@ contract ICOToken is BurnableToken, MintableToken, PausableToken {
     string public constant symbol = "AIUR";
     uint8 public constant decimals = 18;
 
-    function ICOToken() public {
+    constructor() public {
     }
 }

@@ -42,7 +42,6 @@ contract('ICOCrowdsale', function (accounts) {
 
 		return hookOperatorContract;
 	}
-		// test to buy tokens from fallback function
 
 	describe("Initializing Crowsale", () => {
 

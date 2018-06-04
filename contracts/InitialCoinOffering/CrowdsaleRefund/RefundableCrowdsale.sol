@@ -11,7 +11,7 @@ contract RefundableCrowdsale is FinalizableCrowdsale {
 
     RefundVault public vault;
 
-    function RefundableCrowdsale(uint256 _goal) public {
+    constructor(uint256 _goal) public {
         require(_goal > 0);
         vault = new RefundVault(wallet);
         goal = _goal;

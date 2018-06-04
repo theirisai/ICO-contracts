@@ -21,11 +21,11 @@ contract OwnableUpgradeableImplementation is SharedStorage, NotInitedOwnable {
         emit UpgradedContract(_newImpl);
     }
 
-    function getImplementation() constant public returns(address) {
+    function getImplementation() view public returns(address) {
         return contractImplementation;
     }
     
-    function getOwner() constant public returns(address) {
+    function getOwner() view public returns(address) {
         return owner;
     }
 }

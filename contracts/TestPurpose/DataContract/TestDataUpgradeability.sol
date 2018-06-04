@@ -2,6 +2,7 @@ pragma solidity ^0.4.21;
 
 import "./ITestDataUpgradeability.sol";
 import "./../../LinkedList/LinkedListContract.sol";
+import "./../../../node_modules/zeppelin-solidity/contracts/math/SafeMath.sol";
 import "./../../Upgradeability/OwnableUpgradeableImplementation/OwnableUpgradeableImplementation.sol";
 
 contract TestDataUpgradeability is ITestDataUpgradeability, OwnableUpgradeableImplementation, LinkedListContract {
@@ -9,16 +10,20 @@ contract TestDataUpgradeability is ITestDataUpgradeability, OwnableUpgradeableIm
     uint256 public taxPercentage;
     uint256 public taxationPeriodInSeconds;
 
-    uint256 public constant DEFAULT_PERCENTAGE = 10;
+    // Added for testing upgradeability purpose
+    using SafeMath for uint256;
+    uint256 public percentage_delimiter;
 
-    /*
-        The differences between the original data contract and test purposes one is only in the getTaxPercentage function
-    */
-    function getTaxPercentage() public view returns(uint256 _taxPercentage) {
-        return DEFAULT_PERCENTAGE;
+    function setPercentageDelimiter(uint newPercentageDelimiter) public {
+        percentage_delimiter = newPercentageDelimiter;
     }
 
-    function setTaxPercentage(uint256 _taxPercentage) public onlyUserManager {
+    // The logic is changed for testing upgradeability purpose
+    function getTaxPercentage() public view returns(uint256 _taxPercentage) {
+        return taxPercentage.div(percentage_delimiter);
+    }
+
+    function setTaxPercentage(uint256 _taxPercentage) public {
         taxPercentage = _taxPercentage;
 
         emit LogSettedTaxPercentage(taxPercentage);

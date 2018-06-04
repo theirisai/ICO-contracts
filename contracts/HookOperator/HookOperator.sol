@@ -129,14 +129,13 @@ contract HookOperator is IHookOperator, OwnableUpgradeableImplementation {
         emit LogOnMint(to, tokensAmount);
     }
 
-    // Ask for burning?
     function onBurn(uint256 amount) public onlyICOToken {
         emit LogOnBurn(amount);        
     }
 
     function onTaxTransfer(address taxableUser, uint256 tokensAmount) public onlyICOToken nonZeroAddress(taxableUser) {
         // We're not taxing the users at the moment
-        emit LogOnTaxTransfer(address(0), 0);
+        emit LogOnTaxTransfer(taxableUser, tokensAmount);
     }
 
     /**

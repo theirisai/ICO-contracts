@@ -17,12 +17,12 @@ contract ExchangeOracle is Ownable, Pausable {
     event LogRateChanged(uint oldRate, uint newRate, address changer);
     event LogMinWeiAmountChanged(uint oldMinWeiAmount, uint newMinWeiAmount, address changer);
 
-    function ExchangeOracle(uint initialRate) public {
+    constructor(uint initialRate) public {
         require(initialRate > 0);
         rate = initialRate;
     }
 
-    function rate() public constant whenNotPaused returns(uint) {
+    function rate() public view whenNotPaused returns(uint) {
         return rate;
     }
 

@@ -27,7 +27,13 @@ contract Vesting is Ownable {
 
     event LogTwentyFivePercantageWithdrawing(address withdrawer);
     event LogSeventyFivePercantageWithdrawing(address withdrawer);
-    event LogOverDepositsRefund(address investorAddress, uint overDepositedTokens, uint ethersToRefund, uint rate, address overDepositTokensRecipientAddress);
+    event LogOverDepositsRefund(
+        address investorAddress, 
+        uint overDepositedTokens, 
+        uint ethersToRefund, 
+        uint rate, 
+        address overDepositTokensRecipientAddress
+    );
 
     modifier nonZeroAddress(address addressForValidation) {
         require(addressForValidation != address(0));
@@ -41,7 +47,7 @@ contract Vesting is Ownable {
         _;
     }
 
-    function Vesting(address claimerAddress, uint256 startTime) public nonZeroAddress(claimerAddress) {
+    constructor(address claimerAddress, uint256 startTime) public nonZeroAddress(claimerAddress) {
         require(startTime >= now);
 
         twentyFivePercentageClaimer = claimerAddress;
@@ -49,7 +55,9 @@ contract Vesting is Ownable {
         isTwentyFivePercentageClaimed = false;
 
         twentyFivePercentageClaimStartDate = startTime;
-        seventyFivePercentageClaimStartDate = startTime.add(SEVENTY_FIVE_PERCENTAGE_NOTCLAIM_DURATION); // We can claim 75% two months after the beginning
+
+        // We can claim 75% two months after the beginning
+        seventyFivePercentageClaimStartDate = startTime.add(SEVENTY_FIVE_PERCENTAGE_NOTCLAIM_DURATION); 
     }
 
     function setTokenInstance(address tokenInstanceAddress) public onlyOwner nonZeroAddress(tokenInstanceAddress) {
@@ -71,7 +79,7 @@ contract Vesting is Ownable {
 
         isTwentyFivePercentageClaimed = true;
 
-        uint ethToSend = this.balance.div(TWENTY_FIVE_PERCENTAGE_DELIMITER); // 25% of the ethers
+        uint ethToSend = address(this).balance.div(TWENTY_FIVE_PERCENTAGE_DELIMITER); // 25% of the ethers
 
         twentyFivePercentageClaimer.transfer(ethToSend);
 
@@ -86,9 +94,9 @@ contract Vesting is Ownable {
         require(seventyFivePercentageClaimStartDate <= now);
 
         if(isTwentyFivePercentageClaimed){
-            seventyFivePercentageClaimer.transfer(this.balance);
+            seventyFivePercentageClaimer.transfer(address(this).balance);
         }else{
-            uint ethToSend = this.balance.div(TWENTY_FIVE_PERCENTAGE_DELIMITER).mul(SEVENTY_FIVE_PERCENTAGE_MULTIPLIER); // 75% of the ethers
+            uint ethToSend = address(this).balance.div(TWENTY_FIVE_PERCENTAGE_DELIMITER).mul(SEVENTY_FIVE_PERCENTAGE_MULTIPLIER); // 75% of the ethers
             seventyFivePercentageClaimer.transfer(ethToSend);
         }
 

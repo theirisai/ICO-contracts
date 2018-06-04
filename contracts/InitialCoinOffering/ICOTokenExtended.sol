@@ -43,7 +43,7 @@ contract ICOTokenExtended is ICOToken {
         _;
     }
 
-    function ICOTokenExtended() public {
+    constructor() public {
         minters[msg.sender] = msg.sender;
     }
 
@@ -72,8 +72,8 @@ contract ICOTokenExtended is ICOToken {
         totalSupply = totalSupply.add(tokensAmount);
         balances[to] = balances[to].add(tokensAmount);
 
-        Mint(to, tokensAmount);
-        Transfer(address(0), to, tokensAmount);
+        emit Mint(to, tokensAmount);
+        emit Transfer(address(0), to, tokensAmount);
         return true;
     } 
 

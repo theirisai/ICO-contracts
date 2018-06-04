@@ -48,7 +48,7 @@ contract ICOCrowdsale is Ownable, FinalizableCrowdsale, WhitelistedCrowdsale {
 
     event LogBountyTokenMinted(address minter, address beneficiary, uint256 amount);
 
-    function ICOCrowdsale(uint256 startTime, uint256 endTime, address wallet, address hookOperatorAddress) public
+    constructor(uint256 startTime, uint256 endTime, address wallet, address hookOperatorAddress) public
         FinalizableCrowdsale()
         Crowdsale(startTime, endTime, REGULAR_RATE, wallet)
     {
@@ -79,6 +79,7 @@ contract ICOCrowdsale is Ownable, FinalizableCrowdsale, WhitelistedCrowdsale {
         icoToken.transferOwnership(owner);
     }
 
+    // The extensionTime is in seconds
     function extendPreSalesPeriodWith(uint extensionTime) public onlyOwner {
         preSalesEndDate = preSalesEndDate.add(extensionTime);
     }
@@ -106,12 +107,12 @@ contract ICOCrowdsale is Ownable, FinalizableCrowdsale, WhitelistedCrowdsale {
         }
 
         token.mint(beneficiary, tokens);
-        TokenPurchase(msg.sender, beneficiary, weiAmount, tokens);
+        emit TokenPurchase(msg.sender, beneficiary, weiAmount, tokens);
 
         forwardFunds();
     }
 
-    function getRate() internal constant returns(uint256) {
+    function getRate() internal view returns(uint256) {
 
         if(now <= preSalesEndDate && weiRaised < MAX_FUNDS_RAISED_DURING_PRESALE){
             if(preSalesSpecialUsers[msg.sender] > 0){
@@ -152,7 +153,7 @@ contract ICOCrowdsale is Ownable, FinalizableCrowdsale, WhitelistedCrowdsale {
 
         totalMintedBountyTokens = totalMintedBountyTokens.add(amount);
         token.mint(beneficiary, amount);
-        LogBountyTokenMinted(msg.sender, beneficiary, amount);
+        emit LogBountyTokenMinted(msg.sender, beneficiary, amount);
 
         return true;
     }

@@ -6,7 +6,7 @@ import "./../InitialCoinOffering/CrowdsaleRefund/RefundableCrowdsale.sol";
 
 contract TestRefundableCrowdsale is RefundableCrowdsale {
 
-    function TestRefundableCrowdsale (
+    constructor(
         uint256 startTime,
         uint256 endTime,
         uint256 rate,

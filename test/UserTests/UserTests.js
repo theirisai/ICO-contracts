@@ -176,12 +176,17 @@ contract('User Contract', function (accounts) {
         });
     
         describe('Update KYC status', () => {
+            let kycVerificationContractAddress = accounts[7];
+
+            beforeEach(async () => {
+                await userFactory.setKYCVerificationInstance(kycVerificationContractAddress, {from: OWNER});
+            });
             
             it('should update user kyc status', async () => {
                 let userDataBeforeUpdate = await userInstance.getUserData();
                 let userOneKYCStatusBeforeUpdate = userDataBeforeUpdate[1];
 
-                await userInstance.updateKYCStatus(USER_KYC_STATUS.VERIFIED, {from: USER_MANAGER});
+                await userInstance.updateKYCStatus(USER_KYC_STATUS.VERIFIED, {from: kycVerificationContractAddress});
 
                 let userDataAfterUpdate = await userInstance.getUserData();
                 let userOneKYCStatusAfterUpdate = userDataAfterUpdate[1];
@@ -192,12 +197,11 @@ contract('User Contract', function (accounts) {
 
             it('should unblacklist a user when his kyc status is updated to true', async () => {
                 const IS_BLACKLISTED_USER = true;
-                await userFactory.setKYCVerificationInstance(KYC_VERIFICATION, {from: OWNER});
 
-                await userInstance.setUserBlacklistedStatus(IS_BLACKLISTED_USER, {from: KYC_VERIFICATION});
+                await userInstance.setUserBlacklistedStatus(IS_BLACKLISTED_USER, {from: kycVerificationContractAddress});
 
                 let userBlacklistStatusBeforeUpdate = await userInstance.isUserBlacklisted();
-                await userInstance.updateKYCStatus(USER_KYC_STATUS.VERIFIED, {from: USER_MANAGER});
+                await userInstance.updateKYCStatus(USER_KYC_STATUS.VERIFIED, {from: kycVerificationContractAddress});
                 let userBlacklistStatusAfterUpdate = await userInstance.isUserBlacklisted();
 
                 assert.isTrue(userBlacklistStatusBeforeUpdate);
@@ -479,7 +483,8 @@ contract('User Contract', function (accounts) {
             let upgradedUserAddress = await userFactory.getUser(USER_ONE);
             let userUpgradeInstance = await IUserUpgradeabilityTest.at(upgradedUserAddress);
 
-            assert.bigNumberEQNumber(await userUpgradeInstance.getAge(), 0);
+            await userUpgradeInstance.setAge(5);
+            assert.bigNumberEQNumber(await userUpgradeInstance.getAge(), 5);
         });
 
         it('should throw on attempt to use the new functionality before upgrade', async () => {
