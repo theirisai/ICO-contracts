@@ -1,8 +1,3 @@
-# ICO Token ->
+# IrisAI ICO contracts - Project Aiur
 
-* Кои контракти са ни задължителни при деплойването (KYC Verification?)
-* Да прегледаме ICOCrowsale контракта, за да видим дали всичките времена и други стойности си остават същите
-* Да се прегледа миграцията, дали заложените й стойности са валидни още
-* Обяснение какво прави ICOTokenExtended  контракта?
-
-
+ICO Contracts with KYC, User data and Token Hooks for later usage in the Aiur institution.
