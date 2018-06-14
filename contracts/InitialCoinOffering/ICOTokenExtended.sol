@@ -11,16 +11,17 @@ contract ICOTokenExtended is ICOToken {
     IHookOperator public hookOperator;
     ExchangeOracle public aiurExchangeOracle;
 
-    mapping(address => address) public minters;
+    mapping(address => bool) public minters;
 
-    uint256 public constant MIN_REFUND_RATE_DELIMITIER = 2; // Refund rate has to be minimum 50% of the AIUT ExchangeOracle rate
+    uint256 public constant MIN_REFUND_RATE_DELIMITER = 2; // Refund rate has to be minimum 50% of the AIUR ExchangeOracle rate
 
+    event LogRefunderSet(address refunderAddress);
     event LogTransferOverFunds(address from, address to, uint ethersAmount, uint tokensAmount);
     event LogTaxTransfer(address from, address to, uint amount);
     event LogMinterAdd(address addedMinter);
 
     modifier onlyMinter(){
-        require(minters[msg.sender] != address(0));
+        require(minters[msg.sender]);
         
         _;
     }
@@ -44,24 +45,26 @@ contract ICOTokenExtended is ICOToken {
     }
 
     constructor() public {
-        minters[msg.sender] = msg.sender;
+        minters[msg.sender] = true;
     }
 
-    function setRefunder(address refunderAddress) public onlyOwner nonZeroAddress(refunderAddress) {
+    function setRefunder(address refunderAddress) external onlyOwner nonZeroAddress(refunderAddress) {
         refunder = refunderAddress;
+
+        emit LogRefunderSet(refunderAddress);
     }
 
-    // Set the exchange oracle after corwdsale 
-    function setExchangeOracle(address exchangeOracleAddress) public onlyOwner nonZeroAddress(exchangeOracleAddress) {
+    // Set the exchange oracle after crowdsale 
+    function setExchangeOracle(address exchangeOracleAddress) external onlyOwner nonZeroAddress(exchangeOracleAddress) {
         aiurExchangeOracle = ExchangeOracle(exchangeOracleAddress);
     }
 
-    function setHookOperator(address hookOperatorAddress) public onlyOwner nonZeroAddress(hookOperatorAddress) {
+    function setHookOperator(address hookOperatorAddress) external onlyOwner nonZeroAddress(hookOperatorAddress) {
         hookOperator = IHookOperator(hookOperatorAddress);
     }
 
-    function addMinter(address minterAddress) public onlyOwner nonZeroAddress(minterAddress) {
-        minters[minterAddress] = minterAddress;    
+    function addMinter(address minterAddress) external onlyOwner nonZeroAddress(minterAddress) {
+        minters[minterAddress] = true;    
 
         emit LogMinterAdd(minterAddress);
     }
@@ -98,7 +101,7 @@ contract ICOTokenExtended is ICOToken {
     /*
         This function is used for taxation purposes and will be used after pre-defined requirement are met
     */
-    function taxTransfer(address from, address to, uint tokensAmount) public onlyCurrentHookOperator nonZeroAddress(from) nonZeroAddress(to) returns(bool) {  
+    function taxTransfer(address from, address to, uint tokensAmount) external onlyCurrentHookOperator nonZeroAddress(from) nonZeroAddress(to) returns(bool) {  
         require(balances[from] >= tokensAmount);
 
         transferDirectly(from, to, tokensAmount);
@@ -109,11 +112,11 @@ contract ICOTokenExtended is ICOToken {
         return true;
     }
 
-    function transferOverBalanceFunds(address from, address to, uint rate) public payable onlyRefunder nonZeroAddress(from) nonZeroAddress(to) returns(bool) {
+    function transferOverBalanceFunds(address from, address to, uint rate) external payable onlyRefunder nonZeroAddress(from) nonZeroAddress(to) returns(bool) {
         require(!hookOperator.isOverBalanceLimitHolder(from));
 
         uint256 oracleRate = aiurExchangeOracle.rate();
-        require(rate >= oracleRate.div(MIN_REFUND_RATE_DELIMITIER));
+        require(rate >= oracleRate.div(MIN_REFUND_RATE_DELIMITER));
 
         uint256 fromBalance = balanceOf(from);
         
@@ -123,20 +126,20 @@ contract ICOTokenExtended is ICOToken {
         require(fromBalance > maxTokensBalance);
 
         uint256 tokensToTake = fromBalance.sub(maxTokensBalance);
-        uint256 ethersToRefund = tokensToTake.div(rate);
+        uint256 weiToRefund = aiurExchangeOracle.convertTokensAmountInWeiAtRate(tokensToTake, rate);
 
         require(hookOperator.isInBalanceLimit(to, tokensToTake));
-        require(msg.value == ethersToRefund);
+        require(msg.value == weiToRefund);
 
         transferDirectly(from, to, tokensToTake);
         from.transfer(msg.value);
 
-        emit LogTransferOverFunds(from, to, ethersToRefund, tokensToTake);
+        emit LogTransferOverFunds(from, to, weiToRefund, tokensToTake);
 
         return true;
     }
 
-    function transferDirectly(address from, address to, uint tokensAmount) internal {
+    function transferDirectly(address from, address to, uint tokensAmount) private {
         balances[from] = balances[from].sub(tokensAmount);
         balances[to] = balances[to].add(tokensAmount);
     }

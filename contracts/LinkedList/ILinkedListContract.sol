@@ -2,25 +2,28 @@ pragma solidity ^0.4.21;
 
 contract ILinkedListContract {
 
-    function setUserFactory(address userFactoryAddress) public;
-    function getUserFactory() public view returns(address);
+    event LogUserAdd(address userAddress);
+    event LogUserMove(address userAddress);
 
-    function setUserManager(address userManagerAddress) public;
-    function getUserManager() public view returns(address);    
+    function setUserFactory(address userFactoryAddress) external;
+    function getUserFactory() external view returns(address);
 
-    function isSingleNodeList() public view returns(bool);
+    function setUserManager(address userManagerAddress) external;
+    function getUserManager() external view returns(address);    
+
+    function isSingleNodeList() external view returns(bool);
     
-    function add(address userAddress) public;
+    function add(address userAddress) external;
 
-    function moveToEnd(address userAddress) public;
+    function moveToEnd(address userAddress) external;
 
-    function peek(address userAddress) public view returns(address);
+    function peek(address userAddress) external view returns(address);
 
-    function getHead() public view returns(address);
+    function getHead() external view returns(address);
 
-    function getTail() public view returns(address);
+    function getTail() external view returns(address);
 
-    function getLinkedListLength() public view returns (uint256);
+    function getLinkedListLength() external view returns (uint256);
 
-    function getNodeData(address nodeAddress) public view returns(address data, address previousNode, address nextNode);
+    function getNodeData(address nodeAddress) external view returns(address data, address previousNode, address nextNode);
 }

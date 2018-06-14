@@ -11,7 +11,7 @@ contract('ICOToken', function (accounts) {
 	const NOT_OWNER = accounts[1];
 	const USER_ONE = accounts[2];
 
-	const NAME = "IRIS AI Token";
+	const NAME = "AIUR Token";
 	const DECIMALS = 18;
 	const SYMBOL = "AIUR";
 

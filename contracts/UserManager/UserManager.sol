@@ -15,12 +15,18 @@ contract UserManager is IUserManager, OwnableUpgradeableImplementation {
     IDataContract public dataContract;
     IUserFactory public userFactoryContract;
     address public hookOperatorContract;
+    address public crowdsaleContract;
 
     /**
         Modifiers
     */
     modifier onlyHookOperator() {
         require(hookOperatorContract == msg.sender);
+        _;
+    }
+
+    modifier onlyCrowdsale() {
+        require(crowdsaleContract == msg.sender);
         _;
     }
 
@@ -31,6 +37,8 @@ contract UserManager is IUserManager, OwnableUpgradeableImplementation {
         require(_dataContractAddress != address(0));
         
         dataContract = IDataContract(_dataContractAddress);
+
+        emit LogSetDataContract(_dataContractAddress);
     }
 
     function getDataContractAddress() public view returns(address _dataContractAddress) {
@@ -39,10 +47,14 @@ contract UserManager is IUserManager, OwnableUpgradeableImplementation {
 
     function setTaxPercentage(uint256 _taxPercentage) public onlyOwner {
         dataContract.setTaxPercentage(_taxPercentage);
+
+        emit LogSetTaxPercentage(_taxPercentage);
     }
 
     function setTaxationPeriod(uint256 _taxationPeriod) public onlyOwner {
         dataContract.setTaxationPeriodInSeconds(_taxationPeriod);
+
+        emit LogSetTaxationPeriod(_taxationPeriod);
     }
 
     /**
@@ -52,6 +64,8 @@ contract UserManager is IUserManager, OwnableUpgradeableImplementation {
         require(_userFactoryContract != address(0));
 
         userFactoryContract = IUserFactory(_userFactoryContract);
+
+        emit LogSetUserFactoryContract(_userFactoryContract);
     }
 
     function getUserFactoryContractAddress() public view returns(address _userFactoryContractAddress) {
@@ -65,6 +79,8 @@ contract UserManager is IUserManager, OwnableUpgradeableImplementation {
         require(_hookOperatorContract != address(0));
 
         hookOperatorContract = _hookOperatorContract;
+
+        emit LogSetHookOperatorContract(_hookOperatorContract);
     }
 
     function getHookOperatorContractAddress() public view returns(address _HookOperatorContractAddress) {
@@ -74,9 +90,9 @@ contract UserManager is IUserManager, OwnableUpgradeableImplementation {
     function isUserKYCVerified(address _userAddress) public view returns(uint256 KYCStatus) {
         require(_userAddress != address(0));
 
-        IUserContract userContract = userFactoryContract.getUser(_userAddress);
+        IUserContract userContract = userFactoryContract.getUserContract(_userAddress);
         uint256 kycStatus;
-        (, kycStatus,,,,,,) = userContract.getUserData();
+        (, kycStatus,,,,,,,) = userContract.getUserData();
                     
         return kycStatus;
     }
@@ -84,10 +100,10 @@ contract UserManager is IUserManager, OwnableUpgradeableImplementation {
     function isBlacklisted(address _userAddress) public view returns(bool _isBlacklisted) {
         require(_userAddress != address(0));
 
-        IUserContract userContract = userFactoryContract.getUser(_userAddress);
+        IUserContract userContract = userFactoryContract.getUserContract(_userAddress);
 
         bool isBlacklistedUser;
-        (,,,isBlacklistedUser,,,,) = userContract.getUserData();
+        (,,,isBlacklistedUser,,,,,) = userContract.getUserData();
 
         return isBlacklistedUser;
     }
@@ -95,7 +111,7 @@ contract UserManager is IUserManager, OwnableUpgradeableImplementation {
     function isBannedUser(address userAddress) public view returns(bool _isBannedUser) {
         require(userAddress != address(0));
 
-        IUserContract userContract = userFactoryContract.getUser(userAddress);
+        IUserContract userContract = userFactoryContract.getUserContract(userAddress);
         bool isBanned = userContract.isUserBanned();
 
         return isBanned;
@@ -104,31 +120,55 @@ contract UserManager is IUserManager, OwnableUpgradeableImplementation {
     function updateGenerationRatio(uint256 _generationRatio, address userContractAddress) public onlyHookOperator {
         require(userContractAddress != address(0));
 
-        IUserContract userContract = userFactoryContract.getUser(userContractAddress);
+        IUserContract userContract = userFactoryContract.getUserContract(userContractAddress);
         userContract.updateGenerationRatio(_generationRatio);
+
+        emit LogUpdateGenerationRatio(_generationRatio, userContractAddress);
     }
 
     function updateLastTransactionTime(address _userAddress) public onlyHookOperator {
         require(_userAddress != address(0));
 
-        IUserContract userContract = userFactoryContract.getUser(_userAddress);
+        IUserContract userContract = userFactoryContract.getUserContract(_userAddress);
 
         userContract.updateLastTransactionTime(now);
 
         if (!dataContract.isSingleNodeList()){
             dataContract.moveToEnd(_userAddress);
         }
+
+        emit LogUpdateLastTransactionTime(_userAddress);
     }
 
     function getUserContractAddress(address _userAddress) public view returns(IUserContract _userContract) {
         require(_userAddress != address(0));
 
-        return userFactoryContract.getUser(_userAddress);
+        return userFactoryContract.getUserContract(_userAddress);
     }
 
-    function isUserPolicyCorrect(address userAddress) public view returns(bool) {
-        IUserContract userContract = userFactoryContract.getUser(userAddress);
+    function isValidUser(address userAddress) public view returns(bool) {
+        IUserContract userContract = userFactoryContract.getUserContract(userAddress);
 
-        return userContract.isUserPolicyCorrect();
+        return userContract.isValidUser();
+    }
+
+    function setCrowdsaleContract(address crowdsaleInstance) external onlyOwner {
+        require(crowdsaleInstance != address(0));
+        require(crowdsaleContract == address(0)); // Crowdsale contract can be set only once
+
+        crowdsaleContract = crowdsaleInstance;
+    }
+
+    function getCrowdsaleContract() external view returns(address){
+        return crowdsaleContract;
+    }
+
+    function markUserAsFounder(address userAddress) external onlyCrowdsale {
+        require(userAddress != address(0));
+
+        IUserContract userContract = userFactoryContract.getUserContract(userAddress);
+        userContract.markAsFounder();
+
+        emit LogUserAsFounderMark(userAddress);
     }
 }

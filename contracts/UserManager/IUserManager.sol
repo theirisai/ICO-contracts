@@ -4,6 +4,17 @@ import "./../Upgradeability/OwnableUpgradeableImplementation/IOwnableUpgradeable
 import "./../User/IUserContract.sol";
 
 contract IUserManager is IOwnableUpgradeableImplementation {
+    event LogSetDataContract(address _dataContractAddress);
+    event LogSetTaxPercentage(uint256 _taxPercentage);
+    event LogSetTaxationPeriod(uint256 _taxationPeriod);
+
+    event LogSetUserFactoryContract(address _userFactoryContract);
+    event LogSetHookOperatorContract(address _HookOperatorContract);
+
+    event LogUpdateGenerationRatio(uint256 _generationRatio, address userContractAddress);
+    event LogUpdateLastTransactionTime(address _userAddress);
+
+    event LogUserAsFounderMark(address userAddress);
 
     /**
         Data Contract
@@ -45,5 +56,11 @@ contract IUserManager is IOwnableUpgradeableImplementation {
 
     function getUserContractAddress(address _userAddress) public view returns(IUserContract _userContract);
 
-    function isUserPolicyCorrect(address userAddress) public view returns(bool);
+    function isValidUser(address userAddress) public view returns(bool);
+
+    function setCrowdsaleContract(address crowdsaleInstance) external;
+
+    function getCrowdsaleContract() external view returns(address);
+
+    function markUserAsFounder(address userAddress) external;
 }

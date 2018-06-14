@@ -9,17 +9,20 @@ contract TestUserUpgradeability is ITestUserUpgradeability, SharedStorage {
     using SafeMath for uint256;
 
     uint256 public generationRatio;
-    uint256 public KYCStatus;
-    uint256 public lastTransationTime;
+    uint256 public lastTransactionTime;
     bool public isBlacklistedUser;
     bool public isBanned;
 
-    enum Status {
-        ANONIMNOUS,
-        SEMI_VERIFIED,
-        VERIFIED
-    }
+    bool public isExchangeKYCUser;
 
+    /* 
+        KYC statuses Anonymous = 0 / Semi-Verified = 1 / Verified = 2
+        Statuses range - 0 to 2
+    */
+    uint256 public KYCStatus;
+
+    bool public isFounder;
+    
     struct Policy {
         bool TermsAndConditions;
         bool AML;
@@ -45,14 +48,14 @@ contract TestUserUpgradeability is ITestUserUpgradeability, SharedStorage {
     mapping (uint256 => uint256) public weeklyTransactionVolumeReceiving;
     mapping (uint256 => uint256) public monthlyTransactionVolumeReceiving;
 
-     // This variable's purpose is for upgradeability test
+    // This variable's purpose is for upgradeability test
     uint256 public userAge;
 
     /**
         Modifiers
     */
     modifier onlyUserManagerContract() {
-        require(userFactoryContract.getUserManagerContractAddres() == msg.sender);
+        require(userFactoryContract.getUserManagerContractAddress() == msg.sender);
 
         _;
     }
@@ -81,43 +84,54 @@ contract TestUserUpgradeability is ITestUserUpgradeability, SharedStorage {
         _;
     }
 
-    function setAge(uint newAge) public {
-        userAge = newAge;
+    // Below 2 methods purpose is for upgradeability test
+    function setAge(uint _newAge) external {
+        userAge = _newAge;
     }
-
-    // Below method purpose is for upgradeability test
-    function getAge() public view returns(uint256) {
+    
+    function getAge() external view returns(uint256) {
         return userAge;
     }
 
+  
     /**
         Main Functions
     */
-    function initUser(uint256 _generationRatio, uint256 _KYCStatus, uint256 _lastTransationTime) external onlyNewUser { 
-        require(_KYCStatus <= uint256(Status.VERIFIED));
 
-        generationRatio = _generationRatio;
-        KYCStatus = _KYCStatus;
-        lastTransationTime = _lastTransationTime;
-        isBlacklistedUser = false;
-        isBanned = false;
+    function initExchangeUser(uint256 _KYCStatus) external {
+        initUser(_KYCStatus);
+        isExchangeKYCUser = true;
+
+        emit LogNewExchangeUserCreate(_KYCStatus);
+    }
+
+    function initKYCUser(uint256 _KYCStatus) external { 
+        initUser(_KYCStatus);
 
         userPolicy.TermsAndConditions = true;
         userPolicy.AML = true;
         userPolicy.Constitution = true;
         userPolicy.CommonLicenseAgreement = true;
 
-        userFactoryContract = IUserFactory(msg.sender);
+        emit LogNewUserCreate(_KYCStatus);
+    }
+    
+    function initUser(uint256 _KYCStatus) internal onlyNewUser {
+        require(_KYCStatus <= 2); // Verified status (2) is the last one in the statuses range
 
-        emit LogNewUserCreate(generationRatio, KYCStatus, lastTransationTime);
+        KYCStatus = _KYCStatus;
+        userFactoryContract = IUserFactory(msg.sender);
     }
 
+    function isValidUser() external returns(bool) {
+        return isUserPolicyAccepted() || isExchangeUser();
+    }
 
     function getUserData() external view returns
     (
         uint256 _generationRatio, 
         uint256 _KYCStatus, 
-        uint256 _lastTransationTime, 
+        uint256 _lastTransactionTime, 
         bool _isBlacklistedUser,
         bool _termsAndConditionsAcceptance,
         bool _AMLAcceptance,
@@ -129,7 +143,7 @@ contract TestUserUpgradeability is ITestUserUpgradeability, SharedStorage {
         return(
                 generationRatio, 
                 KYCStatus, 
-                lastTransationTime, 
+                lastTransactionTime, 
                 isBlacklistedUser,
                 userPolicy.TermsAndConditions,
                 userPolicy.AML,
@@ -138,77 +152,101 @@ contract TestUserUpgradeability is ITestUserUpgradeability, SharedStorage {
             );
     }
 
-    function updateUserPolicy(bool termsAndConditions, bool AML, bool constitution, bool CLA) public onlyUserCreator {
-        userPolicy.TermsAndConditions = termsAndConditions;
-        userPolicy.AML = AML;
-        userPolicy.Constitution = constitution;
-        userPolicy.CommonLicenseAgreement = CLA;
+    function isExchangeUser() public view returns(bool) {
+        return isExchangeKYCUser;
     }
 
-    function isUserPolicyCorrect() public view returns(bool) {
+    function updateUserPolicy(bool _termsAndConditions, bool _AML, bool _constitution, bool _CLA) external onlyUserCreator {
+        userPolicy.TermsAndConditions = _termsAndConditions;
+        userPolicy.AML = _AML;
+        userPolicy.Constitution = _constitution;
+        userPolicy.CommonLicenseAgreement = _CLA;
+
+        emit LogUserPolicyUpdate(_termsAndConditions, _AML, _constitution, _CLA);
+    }
+
+    function isUserPolicyAccepted() public view returns(bool) {
         return userPolicy.TermsAndConditions && userPolicy.AML && userPolicy.Constitution && userPolicy.CommonLicenseAgreement;
     }
 
     function updateGenerationRatio(uint256 _generationRatio) external onlyUserManagerContract {
         generationRatio = _generationRatio;
 
-        emit LogSettedGenerationRatio(generationRatio);
+        emit LogGenerationRatioUpdate(generationRatio);
     }
     
-    // onlyKYCContract - add
-    function updateKYCStatus(uint256 newKYCStatus) external onlyUserManagerContract {
-        require(newKYCStatus <= uint256(Status.VERIFIED));
+    function updateKYCStatus(uint256 _newKYCStatus) external onlyKYCContract {
+        require(_newKYCStatus <= 2); // Verified status (2) is the last one in the statuses range
 
-        KYCStatus = newKYCStatus;
+        KYCStatus = _newKYCStatus;
 
-        if (newKYCStatus != uint256(Status.ANONIMNOUS)) {
+        if (_newKYCStatus != uint256(0)) {  // Check for Anonymous status
             isBlacklistedUser = false;
         }
 
-        emit LogSettedKYCStatus(KYCStatus);
+        emit LogKYCStatusUpdate(KYCStatus);
     }
     
-    function updateLastTransactionTime(uint256 _lastTransationTime) external onlyUserManagerContract {
-        lastTransationTime = _lastTransationTime;
+    function updateLastTransactionTime(uint256 _lastTransactionTime) external onlyUserManagerContract {
+        lastTransactionTime = _lastTransactionTime;
 
-        emit LogSettedLastTransactionTime(lastTransationTime);
+        emit LogLastTransactionTimeUpdate(lastTransactionTime);
+    }
+
+    /**
+        Founder - User
+     */
+    function markAsFounder() external onlyUserManagerContract {
+        isFounder = true;
+
+        emit LogAsFounderMark();
+    }
+
+    function isFounderUser() external view returns(bool) {
+        return isFounder;
     }
 
     /**
         Blacklisted - User
     */
-    function setUserBlacklistedStatus(bool _shouldBeBlacklisted) public onlyKYCContract {
+    function setUserBlacklistedStatus(bool _shouldBeBlacklisted) external onlyKYCContract {
         isBlacklistedUser = _shouldBeBlacklisted;
+
+        emit LogUserBlacklistedStatusSet(_shouldBeBlacklisted);
     }
 
-    function isUserBlacklisted() public view returns(bool _isBlacklisted) {
+    function isUserBlacklisted() external view returns(bool _isBlacklisted) {
         return isBlacklistedUser;
     }
 
     /**
         Banned - User
     */
-    function banUser() public onlyKYCContract {
+    function banUser() external onlyKYCContract {
         isBanned = true;
+
+        emit LogUserBan();
     }
 
-    function isUserBanned() public view returns(bool _isBanned) {
+    function isUserBanned() external view returns(bool _isBanned) {
         return isBanned;
     }
 
     /**
         Daily transaction volume
     */
-    function increaseDailyTransactionVolumeSending(uint256 _transactionVolume) public onlyHookOperator {
+    function increaseDailyTransactionVolumeSending(uint256 _transactionVolume) external onlyHookOperator {
         uint256 currentDay = now.div(86400); // 1 day
 
         uint256 currentDayTransactionVolume = dailyTransactionVolumeSending[currentDay];
 
         currentDayTransactionVolume = currentDayTransactionVolume.add(_transactionVolume);
         dailyTransactionVolumeSending[currentDay] = currentDayTransactionVolume;
+
+        emit LogDailyTransactionVolumeSendingIncrease(currentDay, _transactionVolume);
     }
 
-    function getDailyTransactionVolumeSending() public view returns(uint256 _dailyTransactionVolume) {
+    function getDailyTransactionVolumeSending() external view returns(uint256 _dailyTransactionVolume) {
         uint256 currentDay = now.div(86400);
 
         return dailyTransactionVolumeSending[currentDay];
@@ -217,16 +255,18 @@ contract TestUserUpgradeability is ITestUserUpgradeability, SharedStorage {
     /**
         Daily transaction volume - Receiving
     */
-    function increaseDailyTransactionVolumeReceiving(uint256 _transactionVolume) public onlyHookOperator {
+    function increaseDailyTransactionVolumeReceiving(uint256 _transactionVolume) external onlyHookOperator {
         uint256 currentDay = now.div(86400); // 1 day
 
         uint256 currentDayTransactionVolume = dailyTransactionVolumeReceiving[currentDay];
 
         currentDayTransactionVolume = currentDayTransactionVolume.add(_transactionVolume);
         dailyTransactionVolumeReceiving[currentDay] = currentDayTransactionVolume;
+
+        emit LogDailyTransactionVolumeReceivingIncrease(currentDay, _transactionVolume);
     }
 
-    function getDailyTransactionVolumeReceiving() public view returns(uint256 _dailyTransactionVolume) {
+    function getDailyTransactionVolumeReceiving() external view returns(uint256 _dailyTransactionVolume) {
         uint256 currentDay = now.div(86400);
 
         return dailyTransactionVolumeReceiving[currentDay];
@@ -235,15 +275,17 @@ contract TestUserUpgradeability is ITestUserUpgradeability, SharedStorage {
     /**
         Weekly transaction volume
     */
-    function increaseWeeklyTransactionVolumeSending(uint256 _transactionVolume) public onlyHookOperator {
+    function increaseWeeklyTransactionVolumeSending(uint256 _transactionVolume) external onlyHookOperator {
         uint256 currentWeek = now.div(604800); // 1 week
 
         uint256 currentWeekTransactionVolume = weeklyTransactionVolumeSending[currentWeek];
         currentWeekTransactionVolume = currentWeekTransactionVolume.add(_transactionVolume);
         weeklyTransactionVolumeSending[currentWeek] = currentWeekTransactionVolume;     
+
+        emit LogWeeklyTransactionVolumeSendingIncrease(currentWeek, _transactionVolume);
     }
 
-    function getWeeklyTransactionVolumeSending() public view returns(uint256 _weeklyTransactionVolume) {
+    function getWeeklyTransactionVolumeSending() external view returns(uint256 _weeklyTransactionVolume) {
         uint256 currentWeek = now.div(604800);
 
         return weeklyTransactionVolumeSending[currentWeek];
@@ -252,16 +294,18 @@ contract TestUserUpgradeability is ITestUserUpgradeability, SharedStorage {
     /**
         Weekly transaction volume - Receiving
     */
-    function increaseWeeklyTransactionVolumeReceiving(uint256 _transactionVolume) public onlyHookOperator {
+    function increaseWeeklyTransactionVolumeReceiving(uint256 _transactionVolume) external onlyHookOperator {
         uint256 currentWeek = now.div(604800); // 1 week
 
         uint256 currentWeekTransactionVolume = weeklyTransactionVolumeReceiving[currentWeek];
 
         currentWeekTransactionVolume = currentWeekTransactionVolume.add(_transactionVolume);
         weeklyTransactionVolumeReceiving[currentWeek] = currentWeekTransactionVolume;
+
+        emit LogWeeklyTransactionVolumeReceivingIncrease(currentWeek, _transactionVolume);
     }
 
-    function getWeeklyTransactionVolumeReceiving() public view returns(uint256 _weeklyTransactionVolume) {
+    function getWeeklyTransactionVolumeReceiving() external view returns(uint256 _weeklyTransactionVolume) {
         uint256 currentWeek = now.div(604800);
 
         return weeklyTransactionVolumeReceiving[currentWeek];
@@ -270,16 +314,18 @@ contract TestUserUpgradeability is ITestUserUpgradeability, SharedStorage {
     /**
         Monthly transaction volume
     */
-    function increaseMonthlyTransactionVolumeSending(uint256 _transactionVolume) public onlyHookOperator {
+    function increaseMonthlyTransactionVolumeSending(uint256 _transactionVolume) external onlyHookOperator {
         uint256 currentMonth = now.div(2629743); // 30 days
 
         uint256 currentMonthTransactionVolume = monthlyTransactionVolumeSending[currentMonth];
         currentMonthTransactionVolume = currentMonthTransactionVolume.add(_transactionVolume);
         monthlyTransactionVolumeSending[currentMonth] = currentMonthTransactionVolume;
+
+        emit LogMonthlyTransactionVolumeSendingIncrease(currentMonth, _transactionVolume);
     }
 
-    function getMonthlyTransactionVolumeSending() public view returns(uint256 _monthlyTransactionVolume) {
-        uint256 currentMonth = now / 2629743;
+    function getMonthlyTransactionVolumeSending() external view returns(uint256 _monthlyTransactionVolume) {
+        uint256 currentMonth = now.div(2629743);
 
         return monthlyTransactionVolumeSending[currentMonth];
     }
@@ -287,19 +333,20 @@ contract TestUserUpgradeability is ITestUserUpgradeability, SharedStorage {
     /**
         Monthly transaction volume - Receiving
     */
-    function increaseMonthlyTransactionVolumeReceiving(uint256 _transactionVolume) public onlyHookOperator {
+    function increaseMonthlyTransactionVolumeReceiving(uint256 _transactionVolume) external onlyHookOperator {
         uint256 currentMonth = now.div(2629743); // 30 days
 
         uint256 currentMonthTransactionVolume = monthlyTransactionVolumeReceiving[currentMonth];
 
         currentMonthTransactionVolume = currentMonthTransactionVolume.add(_transactionVolume);
         monthlyTransactionVolumeReceiving[currentMonth] = currentMonthTransactionVolume;
+
+        emit LogMonthlyTransactionVolumeReceivingIncrease(currentMonth, _transactionVolume);
     }
 
-    function getMonthlyTransactionVolumeReceiving() public view returns(uint256 _monthlyTransactionVolume) {
-        uint256 currentMonth = now / 2629743;
+    function getMonthlyTransactionVolumeReceiving() external view returns(uint256 _monthlyTransactionVolume) {
+        uint256 currentMonth = now.div(2629743);
 
         return monthlyTransactionVolumeReceiving[currentMonth];
     }
-    
 }

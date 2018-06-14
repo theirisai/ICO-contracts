@@ -6,7 +6,7 @@ contract WhitelistedCrowdsale is Ownable {
 
     /*
         We need a count limit for the users array, 
-        which is passed to setMultiplePreSalesSpecialUsers function
+        which is passed to setMultiple functions
 
         Without the limit, the set could be so big that the transaction required gas is over the block maximum gas
         The count is calculated on:
@@ -22,9 +22,11 @@ contract WhitelistedCrowdsale is Ownable {
     address public lister;
 
     event LogPresalesSpecialUserSet(address userAddress, uint userRate);
-    event LogPresalesSpecialUsersSet(address[] userAddresses, uint userRate);
+    event LogMultiplePresalesSpecialUsersSet(address[] userAddresses, uint userRate);
     event LogPublicsalesSpecialUserAdd(address addedUser);
+    event LogMultiplePublicsalesSpecialUsersSet(address[] userAddresses);
     event LogPublicsalesSpecialUserRemove(address removedUser);
+    event LogListerSet(address listerAddress);
 
     modifier onlyLister() {
         require(msg.sender == lister);
@@ -51,7 +53,7 @@ contract WhitelistedCrowdsale is Ownable {
             preSalesSpecialUsers[users[i]] = userRate;
         }
 
-        emit LogPresalesSpecialUsersSet(users, userRate);
+        emit LogMultiplePresalesSpecialUsersSet(users, userRate);
     }
 
     function addPublicSalesSpecialUser(address user) external onlyLister notZeroAddress(user) {
@@ -60,13 +62,25 @@ contract WhitelistedCrowdsale is Ownable {
         emit LogPublicsalesSpecialUserAdd(user);
     }
 
+    function addMultiplePublicSalesSpecialUser(address[] users) external onlyLister {
+        require(users.length <= MAX_INPUT_USERS_COUNT);
+
+        for(uint i = 0; i < users.length; i++) { 
+            publicSalesSpecialUsers[users[i]] = true;
+        }
+
+        emit LogMultiplePublicsalesSpecialUsersSet(users);
+    }
+
     function removePublicSalesSpecialUser(address user) external onlyLister notZeroAddress(user) {
         publicSalesSpecialUsers[user] = false;
 
         emit LogPublicsalesSpecialUserRemove(user);
     }
 
-    function setLister(address newLister) public onlyOwner notZeroAddress(newLister) {
+    function setLister(address newLister) external onlyOwner notZeroAddress(newLister) {
         lister = newLister;
+
+        emit LogListerSet(newLister);
     }
 }

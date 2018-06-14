@@ -4,6 +4,27 @@ import "./../Upgradeability/OwnableUpgradeableImplementation/IOwnableUpgradeable
 import "./../Oracle/ExchangeOracle.sol";
 
 contract IKYCVerification is IOwnableUpgradeableImplementation {
+    event LogSetDailyLimitForAnonymousUsers(uint256 _transactionDailyMaxVolume);
+    event LogSetDailyLimitForSemiVerifiedUsers(uint256 _transactionDailyMaxVolume);
+
+    event LogSetWeeklyLimitForAnonymousUsers(uint256 _transactionWeeklyMaxVolume);
+    event LogSetWeeklyLimitForSemiVerifiedUsers(uint256 _transactionWeeklyMaxVolume);
+
+    event LogSetMonthlyLimitForAnonymousUsers(uint256 _transactionMonthlyMaxVolume);
+    event LogSetMonthlyLimitForSemiVerifiedUsers(uint256 _transactionMonthlyMaxVolume);
+
+    event LogSetMaxBalanceLimitForAnonymousUsers(uint256 _maxBalance);
+    event LogSetMaxBalanceLimitForSemiVerifiedUsers(uint256 _maxBalance);
+
+    event LogSetExchangeOracle(address _oracleContractAddress);
+    event LogSetKYCUserOwner(address userOwner);
+
+    event LogSetUserBlacklistedStatus(address _userAddress, bool _shouldBeBlacklisted);
+    event LogBanUser(address _userAddress);
+    event LogSetUserFactory(address _userFactoryContractAddress);
+
+    event LogUpdateUserKYCStatus(address userAddress, uint256 kycStatus);
+
     /**
         Daily limit - Anonymous
     */
@@ -69,7 +90,7 @@ contract IKYCVerification is IOwnableUpgradeableImplementation {
 
     /**
         KYC Settings:
-        The owner set a user who will be responsible for the KYC Verication
+        The owner set a user who will be responsible for the KYC Verification
     */
     function setKYCUserOwner(address userOwner) public;
 
@@ -98,7 +119,7 @@ contract IKYCVerification is IOwnableUpgradeableImplementation {
 
     function verifyWeeklyLimitKYC(uint256 tokensToSend, uint256 weeklyAmount, uint256 kycStatus) public view;
 
-    function verifyMontlyLimitKYC(uint256 tokensToSend, uint256 monthlyAmount, uint256 kycStatus) public view;
+    function verifyMonthlyLimitKYC(uint256 tokensToSend, uint256 monthlyAmount, uint256 kycStatus) public view;
 
     function verifyMaxBalanceKYC(uint256 tokensToSend, uint256 userBalance, uint256 kycStatus) public view;
 

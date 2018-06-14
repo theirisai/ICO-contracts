@@ -24,7 +24,7 @@ contract('User Factory', function (accounts) {
 
     const KYC_VERIFICATION = accounts[4];
 
-    const USER_KYC_STATUS = 0; // Anonimonous
+    const USER_KYC_STATUS = 0; // Anonymous
 
     let userFactoryInstance;
 
@@ -36,7 +36,7 @@ contract('User Factory', function (accounts) {
         await userFactoryInstance.init({from: OWNER});
     }
 
-    describe('User Factory Initializaiton', () => {
+    describe('User Factory Initialization', () => {
 
         it('should set initial values correctly', async () => {
             await initUserFactory();
@@ -63,7 +63,7 @@ contract('User Factory', function (accounts) {
 
             it('should set user manager correctly', async () => {
                 await userFactoryInstance.setUserManagerAddress(userManager.address, {from: OWNER});
-                let userManagerAfterSet = await userFactoryInstance.getUserManagerContractAddres();
+                let userManagerAfterSet = await userFactoryInstance.getUserManagerContractAddress();
 
                 assert.equal(userManagerAfterSet, userManager.address, "User Manager is not set correctly");
             });
@@ -102,7 +102,7 @@ contract('User Factory', function (accounts) {
                 );
             });
 
-            it('should throw if non-owner try to set mplementation', async () => {
+            it('should throw if non-owner try to set implementation', async () => {
                 await expectThrow(
                     userFactoryInstance.setImplAddress(implementation.address, {from: NOT_OWNER})
                 );
@@ -117,7 +117,7 @@ contract('User Factory', function (accounts) {
                 kycInstance = await ProjectInitializator.initKYCVerification(OWNER);    
             });
 
-            it('should set KYC verificaiton instance correctly', async () => {
+            it('should set KYC verification instance correctly', async () => {
                 await userFactoryInstance.setKYCVerificationInstance(kycInstance.address, {from: OWNER});
                 let kycAddress = await userFactoryInstance.getKYCVerificationInstance();
 
@@ -187,7 +187,7 @@ contract('User Factory', function (accounts) {
         });
     });
 
-    describe('Create New User', () => {
+    describe('Create User', () => {
 
         let dataContract;
         const NOT_EXISTING_USER = "0x0000000000000000000000000000000000000000";
@@ -205,40 +205,89 @@ contract('User Factory', function (accounts) {
             await userFactoryInstance.setUserCreator(USER_CREATOR, {from: OWNER});
         });
 
-        it('should create a new user', async () => {
-            let dataUserBeforeCreate = await dataContract.getNodeData(USER_ONE);
-            let userAddressBeforeCreate = dataUserBeforeCreate[0];
+        describe('KYC User', () => {
+            it('should create new KYC user', async () => {
+               
+                await createUser(async function(user) {
+                    await userFactoryInstance.createNewUser(user, USER_KYC_STATUS, {from: USER_CREATOR});
+                });
+                
+                let userContractAddress = await userFactoryInstance.getUserContract(USER_ONE);
+                let userContract = await IUserContract.at(userContractAddress);
+                let isUserPolicyAccepted = await userContract.isUserPolicyAccepted();
 
-            await userFactoryInstance.createNewUser(USER_ONE, USER_KYC_STATUS, {from: USER_CREATOR});
+                assert.isTrue(isUserPolicyAccepted, "User policy is not set correctly");
+            });
+        });
+
+        describe('Exchange User', () => {
+            it('should create new exchange user', async () => {
+                await createUser(async function(user) {
+                    await userFactoryInstance.createExchangeUser(user, USER_KYC_STATUS, {from: USER_CREATOR});
+                });
+                
+                let userContractAddress = await userFactoryInstance.getUserContract(USER_ONE);
+                let userContract = await IUserContract.at(userContractAddress);
+                let isExchangeUser = await userContract.isExchangeUser();
+
+                assert.isTrue(isExchangeUser, "User is not created as exchange one");
+            });  
+        });
+
+
+        async function createUser(createUserCallback) {
+            let dataUser = await dataContract.getNodeData(USER_ONE);
+            let userDataAddressBeforeCreate = dataUser[0];
+
+            let isUserContractExistsBeforeCreate = await userFactoryInstance.isUserExisting(USER_ONE);
+
+            await createUserCallback(USER_ONE);
             
-            let createdUser = await userFactoryInstance.getUser(USER_ONE);
+            let createdUserAddress = await userFactoryInstance.getUserById(0);
+            let createdUserContract = await userFactoryInstance.getUserContract(createdUserAddress);
+            
+            dataUser = await dataContract.getNodeData(USER_ONE);
+            let userDataAddressAfterCreate = dataUser[0];
 
-            let dataUserAfterCreate = await dataContract.getNodeData(USER_ONE);
-            let userAddressAfterCreate = dataUserAfterCreate[0];
+            assert.isFalse(isUserContractExistsBeforeCreate, "User contract exists before create");
+            assert.equal(userDataAddressBeforeCreate, NOT_EXISTING_USER, "User exists before create");
+            assert.equal(createdUserAddress, USER_ONE, "User address is not saved successfully");
+            assert.isTrue(createdUserContract != NOT_EXISTING_USER, "User is not created successfully");
+            assert.equal(userDataAddressAfterCreate, USER_ONE, "User is not added to data contract successfully");
+        }
 
-            assert.equal(userAddressBeforeCreate, NOT_EXISTING_USER, "User exists before create");
-            assert.isTrue(createdUser != NOT_EXISTING_USER, "User is not created successfuly");
-            assert.equal(userAddressAfterCreate, USER_ONE, "User is not added to data contract successfuly");
-        });
-
-        it('should throw if non-user creator try to create a new user', async () => {
-            await expectThrow(
-                userFactoryInstance.createNewUser(USER_ONE, USER_KYC_STATUS, {from: NOT_OWNER})
-            );
-        });
-
-        it('should throw on attempt to create a new user, when he already exists', async () => {
-            await userFactoryInstance.createNewUser(USER_ONE, USER_KYC_STATUS, {from: USER_CREATOR});
-
-            await expectThrow(
-                userFactoryInstance.createNewUser(USER_ONE, USER_KYC_STATUS, {from: USER_CREATOR})
-            );
-        });
-
-        it('should throw if input user address parameter is invalid', async () => {
-            await expectThrow(
-                userFactoryInstance.createNewUser("0x0", USER_KYC_STATUS, {from: USER_CREATOR})
-            );
+        describe('Invalid create', () => {
+            it('should throw if non-user creator try to create a new user', async () => {
+                await expectThrow(
+                    userFactoryInstance.createNewUser(USER_ONE, USER_KYC_STATUS, {from: NOT_OWNER})
+                );
+    
+                await expectThrow(
+                    userFactoryInstance.createExchangeUser(USER_ONE, USER_KYC_STATUS, {from: NOT_OWNER})
+                );
+            });
+    
+            it('should throw on attempt to create a new user, when he already exists', async () => {
+                await userFactoryInstance.createNewUser(USER_ONE, USER_KYC_STATUS, {from: USER_CREATOR});
+    
+                await expectThrow(
+                    userFactoryInstance.createNewUser(USER_ONE, USER_KYC_STATUS, {from: USER_CREATOR})
+                );
+    
+                await expectThrow(
+                    userFactoryInstance.createExchangeUser(USER_ONE, USER_KYC_STATUS, {from: USER_CREATOR})
+                );
+            });
+    
+            it('should throw if input user address parameter is invalid', async () => {
+                await expectThrow(
+                    userFactoryInstance.createNewUser("0x0", USER_KYC_STATUS, {from: USER_CREATOR})
+                );
+    
+                await expectThrow(
+                    userFactoryInstance.createExchangeUser("0x0", USER_KYC_STATUS, {from: USER_CREATOR})
+                );
+            });
         });
     });
 
@@ -246,18 +295,45 @@ contract('User Factory', function (accounts) {
 
         beforeEach(async () => {
             await initUserFactory();
+            let userContract = await ProjectInitializator.initUserContract(OWNER);
+            dataContract = await ProjectInitializator.initDataContract(OWNER);
+
+            await dataContract.setUserFactory(userFactoryInstance.address, {from: OWNER});
+            await userFactoryInstance.setDataContract(dataContract.address, {from: OWNER});
+
+            await userFactoryInstance.setImplAddress(userContract.address, {from: OWNER});
+
+            await userFactoryInstance.setUserCreator(USER_CREATOR, {from: OWNER});
+            await userFactoryInstance.createNewUser(USER_ONE, USER_KYC_STATUS, {from: USER_CREATOR});
         });
 
-        it('should throw if requested user does not exist', async () => {
-            await expectThrow(
-                userFactoryInstance.getUser(USER_ONE)
-            );           
+        describe('Get User Address', () => {
+            
+            it('should get user address', async () => {
+                let createdUser = await userFactoryInstance.getUserById(0);
+
+                assert.equal(createdUser, USER_ONE, "Searched address is invalid");
+            });
+
+            it('should throw if user does not exists', async () => {
+                await expectThrow(
+                    userFactoryInstance.getUserById(1)
+                );
+            });
         });
 
-        it('should throw if input user address is invalid', async () => {
-            await expectThrow(
-                userFactoryInstance.getUser("0x0")
-            );
+        describe('Get User Contract', () => {
+            it('should throw if requested user does not exist', async () => {
+                await expectThrow(
+                    userFactoryInstance.getUserContract(OWNER)
+                );           
+            });
+    
+            it('should throw if input user address is invalid', async () => {
+                await expectThrow(
+                    userFactoryInstance.getUserContract("0x0")
+                );
+            });
         });
     });
 
@@ -268,11 +344,11 @@ contract('User Factory', function (accounts) {
 			await initUserFactory();
 		});
 
-		it('should transfer ownership successfuly', async () => {
+		it('should transfer ownership successfully', async () => {
 			await userFactoryInstance.transferOwnership(NEW_OWNER, {from: OWNER});
 			let userFactoryOwner = await userFactoryInstance.getOwner();
 
-			assert.strictEqual(NEW_OWNER, userFactoryOwner, "Ownership is not transfered");
+			assert.strictEqual(NEW_OWNER, userFactoryOwner, "Ownership is not transferred");
 		});
 
 		it('should not transfer ownership if the method caller is not the OWNER', async () => {
@@ -312,14 +388,14 @@ contract('User Factory', function (accounts) {
         });
 
         it('should keep the data state after upgrade', async () => {
-            let createdUser = await userFactoryInstance.getUser(USER_ONE);
+            let createdUserContract = await userFactoryInstance.getUserContract(USER_ONE);
 
             await userFactoryInstance.upgradeImplementation(newImplementationInstance.address, {from: OWNER});
             let userFactoryUpgradedInstance = await ITestUserFactoryUpgradeabiliy.at(userFactoryInstance.address);
            
-            let userOneAddressAfterFactoryUpgrade = await userFactoryUpgradedInstance.getUser(USER_ONE);
+            let userOneAddressAfterFactoryUpgrade = await userFactoryUpgradedInstance.getUserContract(USER_ONE);
 
-            assert.equal(createdUser, userOneAddressAfterFactoryUpgrade, "The data state after upgrade is not keeped");
+            assert.equal(createdUserContract, userOneAddressAfterFactoryUpgrade, "The data state after upgrade is not kept");
         });
 
         it('should add additional functionality', async () => {
@@ -327,7 +403,7 @@ contract('User Factory', function (accounts) {
             let userFactoryUpgradedInstance = await ITestUserFactoryUpgradeabiliy.at(userFactoryInstance.address);
             
             await userFactoryUpgradedInstance.deleteUser(USER_ONE);
-            let deletedUser = await userFactoryUpgradedInstance.getUser(USER_ONE);
+            let deletedUser = await userFactoryUpgradedInstance.getUserContract(USER_ONE);
 
             assert.equal(deletedUser, NOT_EXISTING_USER, "User exists after delete");
         });

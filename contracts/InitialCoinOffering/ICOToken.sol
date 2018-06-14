@@ -6,10 +6,7 @@ import "./../../node_modules/zeppelin-solidity/contracts/token/PausableToken.sol
 
 contract ICOToken is BurnableToken, MintableToken, PausableToken {
 
-    string public constant name = "IRIS AI Token";
+    string public constant name = "AIUR Token";
     string public constant symbol = "AIUR";
     uint8 public constant decimals = 18;
-
-    constructor() public {
-    }
 }

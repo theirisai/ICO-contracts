@@ -9,7 +9,6 @@ const ProjectInitializator = require("./../ProjectInitializator");
 
 const timeTravel = require('./../util').timeTravel;
 const expectThrow = require('./../util').expectThrow;
-const getEvent = require('./../util').getEvent;
 require("./../assertExtensions");
 
 contract('User Contract', function (accounts) {
@@ -27,7 +26,7 @@ contract('User Contract', function (accounts) {
     let USER_GENERATION_RATIO_UPDATE = 3;
 
     const USER_KYC_STATUS = {
-        ANONIMNOUS: 0,
+        ANONYMOUS: 0,
         SEMI_VERIFIED: 1,
         VERIFIED: 2,
         UNDEFINED: 3
@@ -38,58 +37,99 @@ contract('User Contract', function (accounts) {
     let userInstance;
 
     describe('Initialize user', () => {
-       
+
         beforeEach(async () => {
             userInstance = await UserContract.new({from: OWNER});
         });
 
-        it('should initialize new user', async () => {
-            await userInstance.initUser(USER_GENERATION_RATIO, USER_KYC_STATUS.ANONIMNOUS, USER_LAST_TRANSACTION_TIME, {from: OWNER});
-
-            let userGenerationRatio = await userInstance.generationRatio.call();
-            let userKYCStatus = await userInstance.KYCStatus.call();
-            let userLastTransactionTime = await userInstance.lastTransationTime.call();
-            let isBlacklistedUser = await userInstance.isBlacklistedUser.call();
-            let isBanned = await userInstance.isBanned.call();
-            let userFactoryAddress = await userInstance.userFactoryContract.call();
-            let userPolicy = await userInstance.userPolicy.call();
-
-            assert.bigNumberEQNumber(userGenerationRatio, USER_GENERATION_RATIO);
-            assert.equal(userKYCStatus, USER_KYC_STATUS.ANONIMNOUS, "User KYC status is not set correctly");
-            assert.bigNumberEQNumber(userLastTransactionTime, USER_LAST_TRANSACTION_TIME);
-            assert.isTrue(!isBlacklistedUser);
-            assert.isTrue(!isBanned);
-            assert.equal(userFactoryAddress, OWNER, "User factory address is not initialized correctly");
-            assert.isTrue(userPolicy[0], "Terms and conditions is not correctly set");
-            assert.isTrue(userPolicy[1], "AML is no correctly set");
-            assert.isTrue(userPolicy[2], "Constitution is not correctly set");
-            assert.isTrue(userPolicy[3], "Common License Agreement is not correctly set");
-
+        describe('KYC user', () => {
+            it('should initialize new KYC user', async () => {
+                await userInstance.initKYCUser(USER_KYC_STATUS.ANONYMOUS, {from: OWNER});
+    
+                let userKYCStatus = await userInstance.KYCStatus.call();
+                let userFactoryAddress = await userInstance.userFactoryContract.call();
+                let userPolicy = await userInstance.userPolicy.call();
+                let isExchangeUser = await userInstance.isExchangeUser.call();
+                let isValidUser = await userInstance.isValidUser.call();
+                
+                assert.bigNumberEQNumber(userKYCStatus, USER_KYC_STATUS.ANONYMOUS);
+                assert.equal(userFactoryAddress, OWNER, "User factory address is not initialized correctly");
+                assert.isTrue(userPolicy[0], "Terms and conditions is not correctly set");
+                assert.isTrue(userPolicy[1], "AML is no correctly set");
+                assert.isTrue(userPolicy[2], "Constitution is not correctly set");
+                assert.isTrue(userPolicy[3], "Common License Agreement is not correctly set");
+                assert.isTrue(!isExchangeUser, "User is exchange one");
+                assert.isTrue(isValidUser, "User is invalid");
+            });
+    
+            it('should throw if user KYC status is outside the range', async () => {
+                await expectThrow(
+                    userInstance.initKYCUser(USER_KYC_STATUS.UNDEFINED)
+                );
+            });
+    
+            it('should throw on user initialization if this user already exists', async () => {
+                await userInstance.initKYCUser(USER_KYC_STATUS.ANONYMOUS);
+    
+                await expectThrow(
+                    userInstance.initKYCUser(USER_KYC_STATUS.ANONYMOUS)
+                );
+            });
         });
 
-        it('should throw if user KYC status is outside the range', async () => {
-            await expectThrow(
-                userInstance.initUser(USER_GENERATION_RATIO, USER_KYC_STATUS.UNDEFINED, USER_LAST_TRANSACTION_TIME)
-            );
+        describe('Exchange User', () => {
+            it('should initialize new exchange user', async () => {
+                await userInstance.initExchangeUser(USER_KYC_STATUS.VERIFIED, {from: OWNER});
+    
+                let userKYCStatus = await userInstance.KYCStatus.call();
+                let userFactoryAddress = await userInstance.userFactoryContract.call();
+                let isExchangeUser = await userInstance.isExchangeUser.call();
+                let userPolicy = await userInstance.userPolicy.call();
+                let isValidUser = await userInstance.isValidUser.call();
+    
+                assert.bigNumberEQNumber(userKYCStatus, USER_KYC_STATUS.VERIFIED);
+                assert.equal(userFactoryAddress, OWNER, "User factory address is not initialized correctly");
+                assert.isTrue(isExchangeUser, "User is not exchange one");
+                assert.isTrue(!userPolicy[0], "Terms and conditions is not correctly set");
+                assert.isTrue(!userPolicy[1], "AML is no correctly set");
+                assert.isTrue(!userPolicy[2], "Constitution is not correctly set");
+                assert.isTrue(!userPolicy[3], "Common License Agreement is not correctly set");
+                assert.isTrue(isValidUser, "User is invalid");
+            });
+    
+            it('should throw on user initialization if this user already exists', async () => {
+                await userInstance.initExchangeUser(USER_KYC_STATUS.VERIFIED);
+    
+                await expectThrow(
+                    userInstance.initExchangeUser(USER_KYC_STATUS.VERIFIED)
+                );
+            });
         });
 
-        it('should throw on user initialization if this user already exists', async () => {
-            await userInstance.initUser(USER_GENERATION_RATIO, USER_KYC_STATUS.ANONIMNOUS, USER_LAST_TRANSACTION_TIME);
+        describe('Invalid user', () => {
 
-            await expectThrow(
-                userInstance.initUser(USER_GENERATION_RATIO, USER_KYC_STATUS.ANONIMNOUS, USER_LAST_TRANSACTION_TIME)
-            );
-        });
+            it('should initialize new user and convert it to invalid one', async () => {
+                let contracts = await ProjectInitializator.initWithAddress(OWNER);
+                userFactory = await contracts.userFactoryContract;
+                
+                await userFactory.setUserCreator(USER_CREATOR, {from: OWNER});
+                await userFactory.createNewUser(USER_ONE, USER_KYC_STATUS.ANONYMOUS, {from: USER_CREATOR});
+    
+                let userContract = await userFactory.getUserContract(USER_ONE);
+                userInstance = await IUserContract.at(userContract);
 
-        it('should emit event', async () => {
-            await userInstance.initUser(USER_GENERATION_RATIO, USER_KYC_STATUS.ANONIMNOUS, USER_LAST_TRANSACTION_TIME);
-            
-            let event = await getEvent(userInstance.LogNewUserCreate(USER_GENERATION_RATIO, USER_KYC_STATUS.ANONIMNOUS, USER_LAST_TRANSACTION_TIME));
-            const eventArgs = event[0].args;
-            
-            assert.equal(eventArgs._generationRatio.toString(), USER_GENERATION_RATIO, `User generation ratio should be ${USER_GENERATION_RATIO}, but returned ${eventArgs._generationRatio.toString()}`);
-            assert.equal(eventArgs._KYCStatus, USER_KYC_STATUS.ANONIMNOUS, `User KYC status should be ${USER_KYC_STATUS.ANONIMNOUS}, but returned ${eventArgs._KYCStatus}`);
-            assert.equal(eventArgs._lastTransationTime.toString(), USER_LAST_TRANSACTION_TIME, `User last transaction time should be ${USER_LAST_TRANSACTION_TIME}, but returned ${eventArgs._lastTransationTime.toString()}`);
+
+                await userInstance.updateUserPolicy(
+                    true, // TermsAndConditions,
+                    true, // AML,
+                    false, // Constitution,
+                    true, // CommonLicenseAgreement,
+                {from: USER_CREATOR});
+
+                let isInvalidUser = !(await userInstance.isValidUser.call());
+
+                assert.isTrue(isInvalidUser, "User is valid, but is has not to be");
+            });
         });
     });
 
@@ -103,10 +143,10 @@ contract('User Contract', function (accounts) {
             userFactory = await contracts.userFactoryContract;
             await userFactory.setUserManagerAddress(USER_MANAGER, {from: OWNER});
             await userFactory.setUserCreator(USER_CREATOR, {from: OWNER});
-            await userFactory.createNewUser(USER_ONE, USER_KYC_STATUS.ANONIMNOUS, {from: USER_CREATOR});
+            await userFactory.createNewUser(USER_ONE, USER_KYC_STATUS.ANONYMOUS, {from: USER_CREATOR});
 
-            let userAddress = await userFactory.getUser(USER_ONE);
-            userInstance = await IUserContract.at(userAddress);
+            let userContract = await userFactory.getUserContract(USER_ONE);
+            userInstance = await IUserContract.at(userContract);
         });
 
         describe('Update user policy', () => {
@@ -121,7 +161,7 @@ contract('User Contract', function (accounts) {
             it('should update user policy', async () => {
                 let userDataBeforeUpdate = await userInstance.getUserData();
                 let userPolicyBeforeUpdate = await userDataBeforeUpdate[5]; // AML element
-                let isCorrectBeforeUpdate = await userInstance.isUserPolicyCorrect();
+                let isCorrectBeforeUpdate = await userInstance.isUserPolicyAccepted();
 
                 await userInstance.updateUserPolicy(
                     USER_POLICY.TermsAndConditions,
@@ -132,7 +172,7 @@ contract('User Contract', function (accounts) {
 
                 let userDataAfterUpdate = await userInstance.getUserData();
                 let userPolicyAfterUpdate = await userDataAfterUpdate[5]; // AML element
-                let isCorrectAfterUpdate = await userInstance.isUserPolicyCorrect();
+                let isCorrectAfterUpdate = await userInstance.isUserPolicyAccepted();
 
                 assert.isTrue(userPolicyBeforeUpdate);
                 assert.isTrue(!userPolicyAfterUpdate, "User policy is not updated correctly");
@@ -191,7 +231,7 @@ contract('User Contract', function (accounts) {
                 let userDataAfterUpdate = await userInstance.getUserData();
                 let userOneKYCStatusAfterUpdate = userDataAfterUpdate[1];
 
-                assert.bigNumberEQNumber(userOneKYCStatusBeforeUpdate, USER_KYC_STATUS.ANONIMNOUS);
+                assert.bigNumberEQNumber(userOneKYCStatusBeforeUpdate, USER_KYC_STATUS.ANONYMOUS);
                 assert.bigNumberEQNumber(userOneKYCStatusAfterUpdate, USER_KYC_STATUS.VERIFIED);
             });
 
@@ -246,6 +286,36 @@ contract('User Contract', function (accounts) {
         });
     });
 
+    describe('Mark as founder', () => {
+
+        beforeEach(async () => {
+            let contracts = await ProjectInitializator.initWithAddress(OWNER);
+
+            userFactory = await contracts.userFactoryContract;
+            await userFactory.setUserManagerAddress(USER_MANAGER, {from: OWNER});
+            await userFactory.setUserCreator(USER_CREATOR, {from: OWNER});
+            await userFactory.createNewUser(USER_ONE, USER_KYC_STATUS.ANONYMOUS, {from: USER_CREATOR});
+
+            let userContract = await userFactory.getUserContract(USER_ONE);
+            userInstance = await IUserContract.at(userContract);
+        });
+        
+        it('should mark a user as founder', async () => {
+            let isFounderBeforeMark = await userInstance.isFounderUser();
+
+            await userInstance.markAsFounder({from: USER_MANAGER});
+
+            let isFounderAfterMark = await userInstance.isFounderUser();
+
+            assert.isFalse(isFounderBeforeMark, "User is founder before marking");
+            assert.isTrue(isFounderAfterMark, "User is not founder after marking");
+        });
+
+        it('should throw if non-user manager contract try to mark user as founder', async () => {
+            
+        });
+    });
+
     describe('Negative user statuses', () => {
 
         beforeEach(async () => {
@@ -255,10 +325,10 @@ contract('User Contract', function (accounts) {
             await userFactory.setKYCVerificationInstance(KYC_VERIFICATION, {from: OWNER});
             await userFactory.setUserManagerAddress(USER_MANAGER, {from: OWNER});
             await userFactory.setUserCreator(USER_CREATOR, {from: OWNER});
-            await userFactory.createNewUser(USER_ONE, USER_KYC_STATUS.ANONIMNOUS, {from: USER_CREATOR});
+            await userFactory.createNewUser(USER_ONE, USER_KYC_STATUS.ANONYMOUS, {from: USER_CREATOR});
 
-            let userAddress = await userFactory.getUser(USER_ONE);
-            userInstance = await IUserContract.at(userAddress);
+            let userContract = await userFactory.getUserContract(USER_ONE);
+            userInstance = await IUserContract.at(userContract);
         });
 
         describe('Blacklist user', () => {
@@ -321,10 +391,10 @@ contract('User Contract', function (accounts) {
             userFactory = await contracts.userFactoryContract;
             await userFactory.setHookOperatorAddress(HOOK_OPERATOR, {from: OWNER});
             await userFactory.setUserCreator(USER_CREATOR, {from: OWNER});
-            await userFactory.createNewUser(USER_ONE, USER_KYC_STATUS.ANONIMNOUS, {from: USER_CREATOR});
+            await userFactory.createNewUser(USER_ONE, USER_KYC_STATUS.ANONYMOUS, {from: USER_CREATOR});
 
-            let userAddress = await userFactory.getUser(USER_ONE);
-            userInstance = await IUserContract.at(userAddress);
+            let userContract = await userFactory.getUserContract(USER_ONE);
+            userInstance = await IUserContract.at(userContract);
         });
 
         describe('Daily transaction volume', () => {
@@ -346,7 +416,7 @@ contract('User Contract', function (accounts) {
                 assert.bigNumberEQNumber(userVolumeAfterTomorrowIncrease, TRANSACTION_VOLUME);
             });
 
-            it('should increase daily reveiving transaction volume', async () => {
+            it('should increase daily receiving transaction volume', async () => {
                 let userVolumeBeforeTodayIncrease = await userInstance.getDailyTransactionVolumeReceiving();
                 await userInstance.increaseDailyTransactionVolumeReceiving(TRANSACTION_VOLUME, {from: HOOK_OPERATOR});
                 let userVolumeAfterTodayIncrease = await userInstance.getDailyTransactionVolumeReceiving();
@@ -384,7 +454,7 @@ contract('User Contract', function (accounts) {
                 assert.bigNumberEQNumber(userVolumeNextWeekAfterIncrease, TRANSACTION_VOLUME);
             });
 
-            it('should increase weekly reveiving transaction volume', async () => {
+            it('should increase weekly receiving transaction volume', async () => {
                 let userVolumeThisWeekBeforeIncrease = await userInstance.getWeeklyTransactionVolumeReceiving();
                 await userInstance.increaseWeeklyTransactionVolumeReceiving(TRANSACTION_VOLUME, {from: HOOK_OPERATOR});
                 let userVolumeThisWeekAfterIncrease = await userInstance.getWeeklyTransactionVolumeReceiving();
@@ -422,7 +492,7 @@ contract('User Contract', function (accounts) {
                 assert.bigNumberEQNumber(userVolumeAfterNextMonthIncrease, TRANSACTION_VOLUME);
             });
 
-            it('should increase monthly reveiving transaction volume', async () => {
+            it('should increase monthly receiving transaction volume', async () => {
                 let userVolumeBeforeThisMonthIncrease = await userInstance.getMonthlyTransactionVolumeReceiving();
                 await userInstance.increaseMonthlyTransactionVolumeReceiving(TRANSACTION_VOLUME, {from: HOOK_OPERATOR});
                 let userVolumeAfterThisMonthIncrease = await userInstance.getMonthlyTransactionVolumeReceiving();
@@ -455,10 +525,10 @@ contract('User Contract', function (accounts) {
             await userFactory.setHookOperatorAddress(HOOK_OPERATOR, {from: OWNER});
             await userFactory.setUserManagerAddress(USER_MANAGER, {from: OWNER});
             await userFactory.setUserCreator(USER_CREATOR, {from: OWNER});
-            await userFactory.createNewUser(USER_ONE, USER_KYC_STATUS.ANONIMNOUS, {from: USER_CREATOR});
+            await userFactory.createNewUser(USER_ONE, USER_KYC_STATUS.ANONYMOUS, {from: USER_CREATOR});
 
-            let userAddress = await userFactory.getUser(USER_ONE);
-            userInstance = await IUserContract.at(userAddress);
+            let userContract = await userFactory.getUserContract(USER_ONE);
+            userInstance = await IUserContract.at(userContract);
 
             newImplementationInstance = await UserUpgradeabilityTest.new();
 		});
@@ -469,8 +539,8 @@ contract('User Contract', function (accounts) {
 
             await userFactory.setImplAddress(newImplementationInstance.address, {from: OWNER});
 
-            let userAddress = await userFactory.getUser(USER_ONE);
-            let userUpgradeInstance = await IUserUpgradeabilityTest.at(userAddress);
+            let userContract = await userFactory.getUserContract(USER_ONE);
+            let userUpgradeInstance = await IUserUpgradeabilityTest.at(userContract);
 
             let userDailyVolume = await userUpgradeInstance.getDailyTransactionVolumeSending();
 
@@ -480,7 +550,7 @@ contract('User Contract', function (accounts) {
         it('should add new functionality', async () => {
             await userFactory.setImplAddress(newImplementationInstance.address, {from: OWNER});
 
-            let upgradedUserAddress = await userFactory.getUser(USER_ONE);
+            let upgradedUserAddress = await userFactory.getUserContract(USER_ONE);
             let userUpgradeInstance = await IUserUpgradeabilityTest.at(upgradedUserAddress);
 
             await userUpgradeInstance.setAge(5);
@@ -488,8 +558,8 @@ contract('User Contract', function (accounts) {
         });
 
         it('should throw on attempt to use the new functionality before upgrade', async () => {
-            let userAddress = await userFactory.getUser(USER_ONE);
-            let userNonUpgradeInstance = await IUserUpgradeabilityTest.at(userAddress);
+            let userContract = await userFactory.getUserContract(USER_ONE);
+            let userNonUpgradeInstance = await IUserUpgradeabilityTest.at(userContract);
 
             await expectThrow(
                 userNonUpgradeInstance.getAge()

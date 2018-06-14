@@ -7,9 +7,12 @@ import "./../../node_modules/zeppelin-solidity/contracts/ownership/Ownable.sol";
 import "./../../node_modules/zeppelin-solidity/contracts/lifecycle/Pausable.sol";
 import "./../../node_modules/zeppelin-solidity/contracts/math/SafeMath.sol";
 import "./WhitelistedCrowdsale/WhitelistedCrowdsale.sol";
+import "./../UserManager/IUserManager.sol";
 
 contract ICOCrowdsale is Ownable, FinalizableCrowdsale, WhitelistedCrowdsale {
     using SafeMath for uint256;
+
+    IUserManager public userManagerContract;
 
     uint256 public preSalesEndDate;
     uint256 public totalMintedBountyTokens;
@@ -27,26 +30,28 @@ contract ICOCrowdsale is Ownable, FinalizableCrowdsale, WhitelistedCrowdsale {
 
     // 0.01 eth = 1 token
     uint256 public constant REGULAR_RATE = 100;
-    uint256 public PUBLIC_SALES_SPECIAL_USERS_RATE = 120; // 20% bonus
+    uint256 public constant PUBLIC_SALES_SPECIAL_USERS_RATE = 120; // 20% bonus
 
     uint256 public constant DEFAULT_CROWDSALE_DURATION = 7 weeks;
     uint256 public constant DEFAULT_PRESALES_DURATION = 3 weeks;
+    uint256 public constant MAX_PRESALES_EXTENSION= 12 weeks;
 
     /*
         The public sales periods ends:
-            PUBLIC_SALES_1_END = 1 weeks / Public sales 1 period starts from private sales period and expires one week after the private sales end
-            PUBLIC_SALES_2_END = 2 weeks / Public sales 2 period starts from public sales 1 period and expires on the 2-nd week after the private sales end
-            PUBLIC_SALES_3_END = 3 weeks / Public sales 3 period starts from public sales 2 period and expires on the 3-th week after the private sales end
+            PUBLIC_SALES_1_PERIOD_END = 1 weeks / Public sales 1 period starts from private sales period and expires one week after the private sales end
+            PUBLIC_SALES_2_PERIOD_END = 2 weeks / Public sales 2 period starts from public sales 1 period and expires on the 2-nd week after the private sales end
+            PUBLIC_SALES_3_PERIOD_END = 3 weeks / Public sales 3 period starts from public sales 2 period and expires on the 3-th week after the private sales end
     */
-    uint256 public constant PUBLIC_SALES_1_Duration = 1 weeks;
-    uint256 public constant PUBLIC_SALES_2_Duration = 2 weeks;
-    uint256 public constant PUBLIC_SALES_3_Duration = 3 weeks;
+    uint256 public constant PUBLIC_SALES_1_PERIOD_END = 1 weeks;
+    uint256 public constant PUBLIC_SALES_2_PERIOD_END = 2 weeks;
+    uint256 public constant PUBLIC_SALES_3_PERIOD_END = 3 weeks;
 
     uint256 public constant PUBLIC_SALES_1_RATE = 115; // 15% bonus
     uint256 public constant PUBLIC_SALES_2_RATE = 110; // 10% bonus
     uint256 public constant PUBLIC_SALES_3_RATE = 105; // 5% bonus
 
     event LogBountyTokenMinted(address minter, address beneficiary, uint256 amount);
+    event LogPrivatesaleExtend(uint extensionTime);
 
     constructor(uint256 startTime, uint256 endTime, address wallet, address hookOperatorAddress) public
         FinalizableCrowdsale()
@@ -81,7 +86,11 @@ contract ICOCrowdsale is Ownable, FinalizableCrowdsale, WhitelistedCrowdsale {
 
     // The extensionTime is in seconds
     function extendPreSalesPeriodWith(uint extensionTime) public onlyOwner {
+        require(extensionTime <= MAX_PRESALES_EXTENSION);
+        
         preSalesEndDate = preSalesEndDate.add(extensionTime);
+
+        emit LogPrivatesaleExtend(extensionTime);
     }
 
     function buyTokens(address beneficiary) public payable {
@@ -92,7 +101,7 @@ contract ICOCrowdsale is Ownable, FinalizableCrowdsale, WhitelistedCrowdsale {
         uint256 weiAmount = msg.value;
 
         // calculate token amount to be created
-        uint256 tokens = getTokenAmount(weiAmount);
+        uint256 tokens = getTokenAmount(weiAmount, beneficiary);
 
         // Check for maximum user's tokens amount overflow
         uint256 beneficiaryBalance = token.balanceOf(beneficiary);
@@ -107,44 +116,47 @@ contract ICOCrowdsale is Ownable, FinalizableCrowdsale, WhitelistedCrowdsale {
         }
 
         token.mint(beneficiary, tokens);
+
+        userManagerContract.markUserAsFounder(beneficiary);
+
         emit TokenPurchase(msg.sender, beneficiary, weiAmount, tokens);
 
         forwardFunds();
     }
 
-    function getRate() internal view returns(uint256) {
+    function getTokenAmount(uint256 weiAmount, address beneficiaryAddress) internal view returns(uint256 tokenAmount) {
+        uint256 crowdsaleRate = getRate(beneficiaryAddress);
+
+        return weiAmount.mul(crowdsaleRate);
+    }
+
+    function getRate(address beneficiary) internal view returns(uint256) {
 
         if(now <= preSalesEndDate && weiRaised < MAX_FUNDS_RAISED_DURING_PRESALE){
-            if(preSalesSpecialUsers[msg.sender] > 0){
-                return preSalesSpecialUsers[msg.sender];
+            if(preSalesSpecialUsers[beneficiary] > 0){
+                return preSalesSpecialUsers[beneficiary];
             }
 
             return REGULAR_RATE;
         }
 
-        if(publicSalesSpecialUsers[msg.sender]){
+        if(publicSalesSpecialUsers[beneficiary]){
             return PUBLIC_SALES_SPECIAL_USERS_RATE;
         }
 
-        if(now <= preSalesEndDate.add(PUBLIC_SALES_1_Duration)) {
+        if(now <= preSalesEndDate.add(PUBLIC_SALES_1_PERIOD_END)) {
             return PUBLIC_SALES_1_RATE;
         }
 
-        if(now <= preSalesEndDate.add(PUBLIC_SALES_2_Duration)) {
+        if(now <= preSalesEndDate.add(PUBLIC_SALES_2_PERIOD_END)) {
             return PUBLIC_SALES_2_RATE;
         }
 
-        if(now <= preSalesEndDate.add(PUBLIC_SALES_3_Duration)) {
+        if(now <= preSalesEndDate.add(PUBLIC_SALES_3_PERIOD_END)) {
             return PUBLIC_SALES_3_RATE;
         }
 
         return REGULAR_RATE;
-    }
-
-    function getTokenAmount(uint256 weiAmount) internal constant returns(uint256) {
-        uint256 crowdsaleRate = getRate();
-
-        return weiAmount.mul(crowdsaleRate);
     }
 
     function createBountyToken(address beneficiary, uint256 amount) public onlyOwner returns(bool) {
@@ -156,5 +168,11 @@ contract ICOCrowdsale is Ownable, FinalizableCrowdsale, WhitelistedCrowdsale {
         emit LogBountyTokenMinted(msg.sender, beneficiary, amount);
 
         return true;
+    }
+
+    function setUserManagerContract(address userManagerInstance) public onlyOwner {
+        require(userManagerInstance != address(0));
+
+        userManagerContract = IUserManager(userManagerInstance);
     }
 }

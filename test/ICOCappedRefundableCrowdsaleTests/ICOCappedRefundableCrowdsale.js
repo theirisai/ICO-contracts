@@ -68,6 +68,7 @@ contract('ICOCappedRefundableCrowdsale', function (accounts) {
 	async function prepareCrowdsale(){
 		contracts = await ProjectInitializator.initWithAddress(OWNER);
 
+		let userManager = contracts.userManagerContract;		
 		let hookOperator = contracts.hookOperatorContract;
 
 		let crowdsaleContract = await initCrowdsale(hookOperator.address);
@@ -75,6 +76,9 @@ contract('ICOCappedRefundableCrowdsale', function (accounts) {
 		let crowdsaleTokenAddress = await crowdsaleContract.token.call();
 
 		await hookOperator.setICOToken(crowdsaleTokenAddress, {from: OWNER});
+
+		await userManager.setCrowdsaleContract(crowdsaleContract.address);
+		await crowdsaleContract.setUserManagerContract(userManager.address);
 
 		return crowdsaleContract;
 	}
@@ -173,7 +177,7 @@ contract('ICOCappedRefundableCrowdsale', function (accounts) {
 
 			let lister = await crowdsaleInstance.lister.call();
 
-			assert.equal(lister, NEW_LISTER, "Lister is not set successfuly");
+			assert.equal(lister, NEW_LISTER, "Lister is not set successfully");
 		});
 
 		it('should throw if non-owner try to set lister', async () => {
@@ -190,7 +194,7 @@ contract('ICOCappedRefundableCrowdsale', function (accounts) {
 			assert.bigNumberEQNumber(investorRate, INVESTOR_RATE);
 		});
 
-		it('should set multiple investors as preslaes sepcials users', async () => {
+		it('should set multiple investors as presales specials users', async () => {
 			await crowdsaleInstance.setMultiplePreSalesSpecialUsers(INVESTORS, INVESTOR_RATE, {from: LISTER});
 
 			let firstInvestorRate = await crowdsaleInstance.preSalesSpecialUsers(INVESTORS[0]);
@@ -219,7 +223,7 @@ contract('ICOCappedRefundableCrowdsale', function (accounts) {
 			assert.isTrue(!investorRateAfterRemove);
 		});
 
-		it('should throw if non-lister try to set presales sepecial users list', async () => {
+		it('should throw if non-lister try to set presales special users list', async () => {
 			await expectThrow(
 				crowdsaleInstance.setPreSalesSpecialUser(INVESTOR, INVESTOR_RATE, {from: NOT_OWNER})
 			);
@@ -229,7 +233,7 @@ contract('ICOCappedRefundableCrowdsale', function (accounts) {
 			);
 		});
 
-		it('should throw if non-lister try to set publicsales sepecial users list', async () => {
+		it('should throw if non-lister try to set publicsales special users list', async () => {
 			await expectThrow(
 				crowdsaleInstance.addPublicSalesSpecialUser(INVESTOR, {from: NOT_OWNER})
 			);
@@ -287,13 +291,13 @@ contract('ICOCappedRefundableCrowdsale', function (accounts) {
 
 
 			/*
-				We pass 64 in generateUsers function for the following reasong:
+				We pass 64 in generateUsers function for the following reasons:
 					1) Skipping the numbers, which mod 10 = 0 -> 6 users
-					2) We are sending 1390 ethers, because when we reach 9000eths, 
+					2) We are sending 1390 ethers, because when we reach 9000 ethers, 
 						the crowsale converts to public sales period and the rate grows to 115. 
 						That means 1 600 ethers is the max amount of ethers(100 rate) we can send for 2% of the hard cap.
 						When the rate grows up to 115, the max amount of ethers we can send is ~1390
-						For the first N users whoose reach 9000eth, we can send to 1600 eth, for the rest - 1390
+						For the first N users whose reach 9000eth, we can send to 1600 eth, for the rest - 1390
 			*/
 			let users = await generateUsers(64);
 			await ProjectInitializator.createVerifiedUsers(OWNER, users);
@@ -418,7 +422,7 @@ contract('ICOCappedRefundableCrowdsale', function (accounts) {
 
 		describe('Refund Over Deposits', () => {
 
-			const REGULAR_RATE = 100;
+			const REGULAR_RATE = 100000; // 100 rate
 
 			const OVER_DEPOSIT_RECIPIENT = accounts[9];
 			const IS_OVER_DEPOSIT_RECIPIENT = true;
@@ -473,7 +477,7 @@ contract('ICOCappedRefundableCrowdsale', function (accounts) {
 				assert.bigNumberEQNumber(overDepositRecipientTokensBalance, OVER_DEPOSIT);
 			});
 			
-			it('should throw if try to refund deposits bofore crowdsale finalization', async () => {
+			it('should throw if try to refund deposits before crowdsale finalization', async () => {
 				await prepareOverDepositRefund();
 
 				await expectThrow(

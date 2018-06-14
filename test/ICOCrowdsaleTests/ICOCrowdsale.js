@@ -1,6 +1,8 @@
 const ICOCrowdsale = artifacts.require("./InitialCoinOffering/ICOCrowdsale.sol");
 const ICOToken = artifacts.require("./InitialCoinOffering/ICOTokenExtended.sol");
 
+const IUserContract = artifacts.require("./../User/IUserContract.sol");
+
 const ProjectInitializator = require("./../ProjectInitializator");
 
 const expectThrow = require('./../util').expectThrow;
@@ -34,10 +36,11 @@ contract('ICOCrowdsale', function (accounts) {
 	const PUBLICSALES_2_PERIOD_RATE = 110; // 10% bonus
 	const PUBLICSALES_3_PERIOD_RATE = 105; // 5% bonus
 
+	let contracts;
 	let hookOperatorAddress;
 
 	async function initHookOperator(){
-		let contracts = await ProjectInitializator.initWithAddress(OWNER);
+		contracts = await ProjectInitializator.initWithAddress(OWNER);
 		let hookOperatorContract = contracts.hookOperatorContract;
 
 		return hookOperatorContract;
@@ -128,9 +131,51 @@ contract('ICOCrowdsale', function (accounts) {
 		});
 	});
 
+	describe('Set User Manager Contract', () => {
+
+		let userManagerInstance;
+
+		beforeEach(async function() {
+			let hookOperatorContract = await initHookOperator();
+			hookOperatorAddress = hookOperatorContract.address;
+
+			userManagerInstance = await ProjectInitializator.initUserManager(OWNER);
+
+			await timeTravel(web3, DAY);
+			startTime = web3FutureTime(web3);
+			endTime = startTime + CROWDSALE_DURATION;
+
+			crowdsaleInstance = await ICOCrowdsale.new(startTime, endTime, WALLET, hookOperatorAddress, {
+				from: OWNER
+			});
+		});
+
+		it('should set user manager contract correctly', async () => {
+			await crowdsaleInstance.setUserManagerContract(userManagerInstance.address);
+			
+			userManagerContract = await crowdsaleInstance.userManagerContract.call();
+
+			assert.equal(userManagerContract, userManagerInstance.address, "User manager contract is not set correctly");
+		});
+
+		it('should throw if non-owner try to set user manager contract', async () => {
+			await expectThrow(
+				crowdsaleInstance.setUserManagerContract(userManagerInstance.address, {from: NOT_OWNER})
+			);
+		});
+
+		it('should throw if user manager contract input address is invalid', async () => {
+			await expectThrow(
+				crowdsaleInstance.setUserManagerContract("0x0", {from: OWNER})
+			);
+		});
+	});
+
 	async function prepareCrowdsale(){
 		let hookOperatorContract = await initHookOperator();
 		hookOperatorAddress = hookOperatorContract.address;
+
+		let userManager = contracts.userManagerContract;
 
 		startTime = web3FutureTime(web3);
 		endTime = startTime + CROWDSALE_DURATION;			
@@ -145,6 +190,9 @@ contract('ICOCrowdsale', function (accounts) {
 		let crowdsaleToken = await ICOToken.at(crowdsaleTokenAddress);
 
 		await hookOperatorContract.setICOToken(crowdsaleTokenAddress, {from: OWNER});
+		
+		await crowdsaleContract.setUserManagerContract(userManager.address);
+		await userManager.setCrowdsaleContract(crowdsaleContract.address);
 
 		await timeTravel(web3, DAY);
 
@@ -157,7 +205,7 @@ contract('ICOCrowdsale', function (accounts) {
 	describe("Token Creation", () => {
 
 		let tokenInstance;
-		const TOKEN_NAME = "IRIS AI Token";
+		const TOKEN_NAME = "AIUR Token";
 		const TOKEN_SYMBOL = "AIUR";
 		const TOKEN_DECIMALS = 18;
 
@@ -223,6 +271,12 @@ contract('ICOCrowdsale', function (accounts) {
 			let presalesEndAfterExtension = await crowdsaleInstance.preSalesEndDate.call();
 
 			assert.bigNumberEQbigNumber(presalesEndBeforeExtension, presalesEndAfterExtension.minus(WEEK));
+		});
+
+		it('should throw on try to extend presales period with more than 12 weeks', async () => {
+			await expectThrow(
+				crowdsaleInstance.extendPreSalesPeriodWith(WEEK * 13, {from: OWNER})
+			);
 		});
 
 		it('should throw if non-owner thy to extend presales period', async () => {
@@ -390,7 +444,9 @@ contract('ICOCrowdsale', function (accounts) {
 	describe('Buy Tokens', () => {
 
 		let tokenInstance;
+		const WEI_SENT = 10 * WEI_IN_ETHER; // 10 ethers
 		const MIN_WEI_AMOUNT = 0.05 * WEI_IN_ETHER; // 0.05 eth = 5 tokens
+		const WHITELIST_RATE = 130;
 
 		beforeEach(async function () {
 			let preparedCrowdsale = await prepareCrowdsale();
@@ -398,49 +454,109 @@ contract('ICOCrowdsale', function (accounts) {
 			crowdsaleInstance = preparedCrowdsale.crowdsaleContract;
 			tokenInstance = preparedCrowdsale.crowdsaleToken;
 
-			await ProjectInitializator.createVerifiedUsers(OWNER, [USER_ONE]);
+			await ProjectInitializator.createVerifiedUsers(OWNER, [USER_ONE, OWNER]);
 		});
 
-		it('should process tokens buying on buy function call', async () => {
-			const weiSent = 10 * WEI_IN_ETHER;
+		it('should process tokens purchase from non-whitelisted address to himself', async () => {
+			let ownerBalanceBeforeBuy = await tokenInstance.balanceOf.call(OWNER);
+
+			let tx = await crowdsaleInstance.buyTokens(OWNER, {
+				value: WEI_SENT,
+				from: OWNER
+			});
+
+			let ownerOneBalanceAfterBuy = await tokenInstance.balanceOf.call(OWNER);
+		
+			assert.bigNumberEQbigNumber(ownerBalanceBeforeBuy, ownerOneBalanceAfterBuy.minus(REGULAR_RATE * WEI_SENT));			
+		});
+
+		it('should process tokens purchase from whitelisted address to himself', async () => {
+			await crowdsaleInstance.setLister(OWNER, {from: OWNER});
+			await crowdsaleInstance.setPreSalesSpecialUser(USER_ONE, WHITELIST_RATE, {from: OWNER});
 
 			let userOneBalanceBeforeBuy = await tokenInstance.balanceOf.call(USER_ONE);
 
-			await crowdsaleInstance.buyTokens(USER_ONE, {
-				value: weiSent,
+			let tx = await crowdsaleInstance.buyTokens(USER_ONE, {
+				value: WEI_SENT,
 				from: USER_ONE
 			});
 
 			let userOneBalanceAfterBuy = await tokenInstance.balanceOf.call(USER_ONE);
 		
-			assert.bigNumberEQbigNumber(userOneBalanceBeforeBuy, userOneBalanceAfterBuy.minus(REGULAR_RATE * weiSent));			
+			assert.bigNumberEQbigNumber(userOneBalanceBeforeBuy, userOneBalanceAfterBuy.minus(WHITELIST_RATE * WEI_SENT));			
 		});
 
-		it('should process tokens buying on fallback function call', async () => {
-			const weiSent = 10 * WEI_IN_ETHER;
+		it('should process tokens purchase from non-whitelisted address to whitelisted one', async () => {
+			await crowdsaleInstance.setLister(OWNER, {from: OWNER});
+			await crowdsaleInstance.setPreSalesSpecialUser(USER_ONE, WHITELIST_RATE, {from: OWNER});
 
 			let userOneBalanceBeforeBuy = await tokenInstance.balanceOf.call(USER_ONE);
 
-			await crowdsaleInstance.sendTransaction({from: USER_ONE, value: weiSent});
+			let tx = await crowdsaleInstance.buyTokens(USER_ONE, {
+				value: WEI_SENT,
+				from: OWNER
+			});
 
 			let userOneBalanceAfterBuy = await tokenInstance.balanceOf.call(USER_ONE);
 		
-			assert.bigNumberEQbigNumber(userOneBalanceBeforeBuy, userOneBalanceAfterBuy.minus(REGULAR_RATE * weiSent));			
+			assert.bigNumberEQbigNumber(userOneBalanceBeforeBuy, userOneBalanceAfterBuy.minus(WHITELIST_RATE * WEI_SENT));			
+		});
+
+		it('should process tokens purchase from whitelisted address to non-whitelisted one', async () => {
+			await crowdsaleInstance.setLister(OWNER, {from: OWNER});
+			await crowdsaleInstance.setPreSalesSpecialUser(USER_ONE, WHITELIST_RATE, {from: OWNER});
+
+			let ownerBalanceBeforeBuy = await tokenInstance.balanceOf.call(OWNER);
+
+			let tx = await crowdsaleInstance.buyTokens(OWNER, {
+				value: WEI_SENT,
+				from: USER_ONE
+			});
+
+			let ownerOneBalanceAfterBuy = await tokenInstance.balanceOf.call(OWNER);
+		
+			assert.bigNumberEQbigNumber(ownerBalanceBeforeBuy, ownerOneBalanceAfterBuy.minus(REGULAR_RATE * WEI_SENT));			
+		});
+
+		it('should process tokens buying on fallback function call', async () => {
+			let userOneBalanceBeforeBuy = await tokenInstance.balanceOf.call(USER_ONE);
+
+			await crowdsaleInstance.sendTransaction({from: USER_ONE, value: WEI_SENT});
+
+			let userOneBalanceAfterBuy = await tokenInstance.balanceOf.call(USER_ONE);
+		
+			assert.bigNumberEQbigNumber(userOneBalanceBeforeBuy, userOneBalanceAfterBuy.minus(REGULAR_RATE * WEI_SENT));			
+		});
+
+		it('should mark beneficiary user as a founder on tokens purchase', async () => {
+			let userFactory = contracts.userFactoryContract;
+			let userContractAddress = await userFactory.getUserContract(USER_ONE);
+			let userContract = await IUserContract.at(userContractAddress);
+
+			let isFounderBeforePurchase = await userContract.isFounderUser();
+
+			await crowdsaleInstance.buyTokens(USER_ONE, {
+				value: WEI_SENT,
+				from: USER_ONE
+			});
+
+			let isFounderAfterPurchase = await userContract.isFounderUser();
+
+			assert.isFalse(isFounderBeforePurchase, "User is marked as founder in advance");
+			assert.isTrue(isFounderAfterPurchase, "User is not marked as founder correctly");
 		});
 
 		it('should forward buyer ethers to the wallet after the purchase', async () => {
-			const weiSent = 10 * WEI_IN_ETHER;
-
 			let walletBalanceBeforeBuy = await web3.eth.getBalance(WALLET);
 
 			await crowdsaleInstance.buyTokens(USER_ONE, {
-				value: weiSent,
+				value: WEI_SENT,
 				from: USER_ONE
 			});
 
 			let walletBalanceAfterBuy = await await web3.eth.getBalance(WALLET);
 
-			assert.bigNumberEQbigNumber(walletBalanceBeforeBuy, walletBalanceAfterBuy.minus(weiSent));
+			assert.bigNumberEQbigNumber(walletBalanceBeforeBuy, walletBalanceAfterBuy.minus(WEI_SENT));
 		});
 
 		it("should throw on wei below min amount", async function () {
@@ -455,24 +571,20 @@ contract('ICOCrowdsale', function (accounts) {
 		});
 
 		it("should throw on invalid beneficiary input address", async function () {
-			const weiSent = MIN_WEI_AMOUNT;
-			
 			await expectThrow(
 				crowdsaleInstance.buyTokens("0x0", {
-					value: weiSent,
+					value: MIN_WEI_AMOUNT,
 					from: USER_ONE
 				})
 			);
 		});
 
 		it("should throw on invalid purchase(outside the crowdsale period)", async function () {
-			const weiSent = MIN_WEI_AMOUNT;
-
 			await timeTravel(web3, CROWDSALE_DURATION);
 			
 			await expectThrow(
 				crowdsaleInstance.buyTokens(USER_ONE, {
-					value: weiSent,
+					value: MIN_WEI_AMOUNT,
 					from: USER_ONE
 				})
 			);
@@ -488,13 +600,13 @@ contract('ICOCrowdsale', function (accounts) {
 				})
 			);
 		});
-
 	});
 
 	describe("Bounty Token", () => {
 
 		let tokenInstance;
 		let bonusTokens = 500 * WEI_IN_ETHER;
+		const EXCHANGE_USER = accounts[9];
 
 		beforeEach(async function () {
 			let preparedCrowdsale = await prepareCrowdsale();
@@ -505,22 +617,30 @@ contract('ICOCrowdsale', function (accounts) {
 			await ProjectInitializator.createVerifiedUsers(OWNER, [USER_ONE]);
 		});
 
-		it("should create bounty tokens", async function () {
+		it("should give bounty tokens to kyc user", async function () {
+			await giveBountyTokensTo(USER_ONE);	
+		});
+		
+		it("should give bounty tokens to exchange user", async function () {
+			await ProjectInitializator.createExchangedUsers(OWNER, [EXCHANGE_USER]);
+			
+			await giveBountyTokensTo(EXCHANGE_USER);		
+		});
 
-			await crowdsaleInstance.createBountyToken(USER_ONE, bonusTokens, {
+		async function giveBountyTokensTo(bountyTokensReceiver){
+			await crowdsaleInstance.createBountyToken(bountyTokensReceiver, bonusTokens, {
 				from: OWNER
 			});
 
 			let systemBountyTokensAmount = await crowdsaleInstance.totalMintedBountyTokens.call();
-			let userOneBalance = await tokenInstance.balanceOf.call(USER_ONE);
+			let receiverBalance = await tokenInstance.balanceOf.call(bountyTokensReceiver);
 
 			assert.bigNumberEQNumber(systemBountyTokensAmount, bonusTokens);
-			assert.bigNumberEQNumber(userOneBalance, bonusTokens);
-		});
+			assert.bigNumberEQNumber(receiverBalance, bonusTokens);
+		}
 
 		it('should not create bounty tokens if crowdsale event has ended', async () => {
 			await timeTravel(web3, endTime + 1);
-
 
 			await expectThrow(crowdsaleInstance.createBountyToken(USER_ONE, bonusTokens, {
 				from: OWNER

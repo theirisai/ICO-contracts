@@ -2,6 +2,9 @@ const ExchangeOracle = artifacts.require("./ExchangeOracle.sol");
 const util = require('./../util');
 const expectThrow = util.expectThrow;
 
+const BigNumber = require('./../bigNumber');
+BigNumber.config({ DECIMAL_PLACES: 25 });
+
 contract('Exchange Oracle', function(accounts) {
 
     let ExchangeOracleInstance;
@@ -9,8 +12,8 @@ contract('Exchange Oracle', function(accounts) {
     const _owner = accounts[0];
     const _notOwner = accounts[1];
 
-    const _initialRate = 10000;
-    const _newRate = 50000;
+    const _initialRate = 100000; // 100 rate
+    const _newRate = 50000; // 50 rate
     const _newMinWeiAmount = 2000;
 
     describe("creating contract", () => {
@@ -107,6 +110,12 @@ contract('Exchange Oracle', function(accounts) {
             }));
         });
 
+        it('should throw if the mod of new wei amount is different than 0', async () => {
+            await expectThrow(ExchangeOracleInstance.setMinWeiAmount(_newRate - 1, {
+                from: _notOwner
+            }));
+        });
+
         it("should emit event on change", async function() {
             const expectedEvent = 'LogMinWeiAmountChanged';
             let result = await ExchangeOracleInstance.setMinWeiAmount(_newMinWeiAmount, {
@@ -116,6 +125,65 @@ contract('Exchange Oracle', function(accounts) {
             assert.lengthOf(result.logs, 1, "There should be 1 event emitted from setMinWeiAmount!");
             assert.strictEqual(result.logs[0].event, expectedEvent, `The event emitted was ${result.logs[0].event} instead of ${expectedEvent}`);
         });
+    });
+
+    describe('tokens amount in wei', () => {
+
+        const _given_rate = 980; // 0.98 rate ( 10 ethers = 9,8 tokens )
+        const _offensiveTokensAmount = new BigNumber('123123123123123123123'); // ~123 tokens / 100 rate = ~123...12,31 ethers ( mod = 31 )
+        const _prettyTokensAmount = new BigNumber('100000000000000000000'); // 100 tokens / 100 rate = 1 ether ( mod = 0 )
+        
+        let minWeiAmount;
+
+        beforeEach(async function() {
+            ExchangeOracleInstance = await ExchangeOracle.new(_initialRate, {
+                from: _owner
+            });
+
+            minWeiAmount = await ExchangeOracleInstance.minWeiAmount.call();
+        });
+
+        describe('calculating wei for given tokens amount at basis rate', () => {
+            it('should calculate wei for offensive tokens amount', async () => {
+                let calculatedWei = await ExchangeOracleInstance.calcWeiForTokensAmount(_offensiveTokensAmount.toString(10));
+                
+                assert.equal(
+                    calculatedWei.toString(10), 
+                    _offensiveTokensAmount.div(_initialRate).multipliedBy(minWeiAmount).plus(1).toFixed(0) // 1,23...23 ethers ( we add 1 wei, because we have mod of 23 => 0.23 wei and we need to round it )
+                );
+            });
+    
+            it('should calculate wei for pretty tokens amount', async () => {
+                let calculatedWei = await ExchangeOracleInstance.calcWeiForTokensAmount(_prettyTokensAmount.toString(10));
+    
+                assert.equal(
+                    calculatedWei.toString(10), 
+                    _prettyTokensAmount.div(_initialRate).multipliedBy(minWeiAmount).toString(10) // 1 ether
+                );
+            });
+        });
+
+        describe('converting tokens amount in wei at given rate', () => {
+
+            it('should convert offensive tokens amount in wei', async () => {
+                let calculatedWei = await ExchangeOracleInstance.convertTokensAmountInWeiAtRate(_offensiveTokensAmount.toString(10), _given_rate);
+
+                assert.equal(
+                    calculatedWei.toString(10), 
+                    _offensiveTokensAmount.div(_given_rate).multipliedBy(minWeiAmount).plus(1).toFixed(0, 1) // ~125 ethers
+                );
+            });
+    
+            it('should convert pretty tokens amount in wei', async () => {
+                let calculatedWei = await ExchangeOracleInstance.convertTokensAmountInWeiAtRate(_prettyTokensAmount.toString(10), _given_rate);
+
+                assert.equal(
+                    calculatedWei.toString(10), 
+                    _prettyTokensAmount.div(_given_rate).multipliedBy(minWeiAmount).toFixed(0)// ~102 ethers
+                );
+            });
+        });
+    
     });
 
     describe("working with paused contract", () => {
@@ -149,6 +217,26 @@ contract('Exchange Oracle', function(accounts) {
             });
 
             await expectThrow(ExchangeOracleInstance.setMinWeiAmount(_newMinWeiAmount, {
+                from: _owner
+            }));
+        });
+
+        it('should throw if try to calculate wei for given tokens at basis rate when contract is paused', async () => {
+            await ExchangeOracleInstance.pause({
+                from: _owner
+            });
+
+            await expectThrow(ExchangeOracleInstance.calcWeiForTokensAmount(_newMinWeiAmount, {
+                from: _owner
+            }));
+        });
+
+        it('should throw if try to convert tokens in wei at given rate when contract is paused', async () => {
+            await ExchangeOracleInstance.pause({
+                from: _owner
+            });
+
+            await expectThrow(ExchangeOracleInstance.convertTokensAmountInWeiAtRate(_newMinWeiAmount, _newRate, {
                 from: _owner
             }));
         });

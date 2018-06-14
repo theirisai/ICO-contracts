@@ -66,7 +66,7 @@ contract('KYCVerification', function (accounts) {
         await kycVerificationContract.setKYCUserOwner(kycAdmin, {from: owner});
     }
 
-    before(async () => {
+    beforeEach(async () => {
         await instantiateContracts();
 	});
 
@@ -201,7 +201,7 @@ contract('KYCVerification', function (accounts) {
         it("should set up oracle", async () => {
             let exchangeOracle = await ExchangeOracle.new(oracleInitialRate);
 
-            await kycVerificationContract.setExchangeOracle(exchangeOracle.address, {from: kycAdmin});
+            await kycVerificationContract.setExchangeOracle(exchangeOracle.address, {from: owner});
             let exchangeOracleInstance = await kycVerificationContract.getExchangeOracle(); 
 
             assert.strictEqual(exchangeOracleInstance, exchangeOracle.address, `The returned contract address is invalid. It should be ${exchangeOracle.address} instead of ${exchangeOracleInstance}`);
@@ -220,7 +220,7 @@ contract('KYCVerification', function (accounts) {
 
     describe("Set UserFactory Contract", () => {
         it("should set up user factory", async () => {
-            await kycVerificationContract.setUserFactory(userFactoryContract.address, {from: kycAdmin});
+            await kycVerificationContract.setUserFactory(userFactoryContract.address, {from: owner});
             let userFactoryAddress = await kycVerificationContract.getUserFactoryContractAddress();
 
             assert.equal(userFactoryAddress, userFactoryContract.address, `User Factory address should be ${userFactoryContract.address} but returned ${userFactoryAddress}`);
@@ -242,7 +242,7 @@ contract('KYCVerification', function (accounts) {
         let validAmount = 5 * token;
         let invalidAmount = 1000 * token;
 
-        before(async () => {
+        beforeEach(async () => {
             /**
              * Anonymous
             */
@@ -268,6 +268,13 @@ contract('KYCVerification', function (accounts) {
                 await kycVerificationContract.verifyDailyLimitKYC(tokensToSend, dailyAmount, 0);
             });
 
+            it("should not throw if the daily volume has the exact value of the daily limit", async () => {
+                let tokensToSend = 15 * token; 
+                let dailyAmount = 0;
+
+                await kycVerificationContract.verifyDailyLimitKYC(tokensToSend, dailyAmount, 0);
+            });
+
             it("should throw when daily amount is bigger than the daily limit", async () => {
                 let tokensToSend = validTokensToSend; 
                 let dailyAmount = invalidAmount;
@@ -275,7 +282,7 @@ contract('KYCVerification', function (accounts) {
                 await expectThrow(kycVerificationContract.verifyDailyLimitKYC(tokensToSend, dailyAmount, 0));
             });
 
-            it("should throw when the sended token will pass the limit", async () => {
+            it("should throw when the sent token will pass the limit", async () => {
                 let tokensToSend = invalidTokensToSend; 
                 let dailyAmount = validAmount;
 
@@ -291,6 +298,13 @@ contract('KYCVerification', function (accounts) {
                 await kycVerificationContract.verifyDailyLimitKYC(tokensToSend, dailyAmount, 1);
             });
 
+            it("should not throw if the daily volume has the exact value of the daily limit", async () => {
+                let tokensToSend = 70 * token; 
+                let dailyAmount = 0;
+
+                await kycVerificationContract.verifyDailyLimitKYC(tokensToSend, dailyAmount, 1);
+            });
+
             it("should throw when daily amount is bigger than the daily limit", async () => {
                 let tokensToSend = validTokensToSend; 
                 let dailyAmount = invalidAmount;
@@ -298,7 +312,7 @@ contract('KYCVerification', function (accounts) {
                 await expectThrow(kycVerificationContract.verifyDailyLimitKYC(tokensToSend, dailyAmount, 1));
             });
 
-            it("should throw when the sended token will pass the limit", async () => {
+            it("should throw when the sent token will pass the limit", async () => {
                 let tokensToSend = invalidTokensToSend; 
                 let dailyAmount = validAmount;
 
@@ -314,6 +328,13 @@ contract('KYCVerification', function (accounts) {
                 await kycVerificationContract.verifyWeeklyLimitKYC(tokensToSend, weeklyAmount, 0);
             });
 
+            it("should not throw if the weekly volume has the exact value of the weekly limit", async () => {
+                let tokensToSend = 60 * token; 
+                let dailyAmount = 0;
+
+                await kycVerificationContract.verifyWeeklyLimitKYC(tokensToSend, dailyAmount, 0);
+            });
+
             it("should throw when weekly amount is bigger than the weekly limit", async () => {
                 let tokensToSend = validTokensToSend; 
                 let weeklyAmount = invalidAmount;
@@ -321,7 +342,7 @@ contract('KYCVerification', function (accounts) {
                 await expectThrow(kycVerificationContract.verifyWeeklyLimitKYC(tokensToSend, weeklyAmount, 0));
             });
 
-            it("should throw when the sended token will pass the limit", async () => {
+            it("should throw when the sent token will pass the limit", async () => {
                 let tokensToSend = invalidTokensToSend;
                 let weeklyAmount = validAmount;
 
@@ -337,6 +358,13 @@ contract('KYCVerification', function (accounts) {
                 await kycVerificationContract.verifyWeeklyLimitKYC(tokensToSend, weeklyAmount, 1);
             });
 
+            it("should not throw if the weekly volume has the exact value of the weekly limit", async () => {
+                let tokensToSend = 280 * token; 
+                let dailyAmount = 0;
+
+                await kycVerificationContract.verifyWeeklyLimitKYC(tokensToSend, dailyAmount, 1);
+            });
+
             it("should throw when weekly amount is bigger than the weekly limit", async () => {
                 let tokensToSend = validTokensToSend; 
                 let weeklyAmount = invalidAmount;
@@ -344,7 +372,7 @@ contract('KYCVerification', function (accounts) {
                 await expectThrow(kycVerificationContract.verifyWeeklyLimitKYC(tokensToSend, weeklyAmount, 1));
             });
 
-            it("should throw when the sended token will pass the limit", async () => {
+            it("should throw when the sent token will pass the limit", async () => {
                 let tokensToSend = invalidTokensToSend;
                 let weeklyAmount = validAmount;
 
@@ -357,21 +385,28 @@ contract('KYCVerification', function (accounts) {
                 let tokensToSend = validTokensToSend; 
                 let monthlyAmount = validAmount;
 
-                await kycVerificationContract.verifyMontlyLimitKYC(tokensToSend, monthlyAmount, 0);
+                await kycVerificationContract.verifyMonthlyLimitKYC(tokensToSend, monthlyAmount, 0);
+            });
+
+            it("should not throw if the monthly volume has the exact value of the monthly limit", async () => {
+                let tokensToSend = 120 * token; 
+                let dailyAmount = 0;
+
+                await kycVerificationContract.verifyMonthlyLimitKYC(tokensToSend, dailyAmount, 0);
             });
 
             it("should throw when monthly amount is bigger than the monthly limit", async () => {
                 let tokensToSend = validTokensToSend; 
                 let monthlyAmount = invalidAmount;
 
-                await expectThrow(kycVerificationContract.verifyMontlyLimitKYC(tokensToSend, monthlyAmount, 0));
+                await expectThrow(kycVerificationContract.verifyMonthlyLimitKYC(tokensToSend, monthlyAmount, 0));
             });
 
-            it("should throw when the sended token will pass the limit", async () => {
+            it("should throw when the sent token will pass the limit", async () => {
                 let tokensToSend = invalidTokensToSend; 
                 let monthlyAmount = validAmount;
 
-                await expectThrow(kycVerificationContract.verifyMontlyLimitKYC(tokensToSend, monthlyAmount, 0));
+                await expectThrow(kycVerificationContract.verifyMonthlyLimitKYC(tokensToSend, monthlyAmount, 0));
             });
         });
 
@@ -380,27 +415,41 @@ contract('KYCVerification', function (accounts) {
                 let tokensToSend = validTokensToSend; 
                 let monthlyAmount = validAmount;
 
-                await kycVerificationContract.verifyMontlyLimitKYC(tokensToSend, monthlyAmount, 1);
+                await kycVerificationContract.verifyMonthlyLimitKYC(tokensToSend, monthlyAmount, 1);
+            });
+
+            it("should not throw if the monthly volume has the exact value of the monthly limit", async () => {
+                let tokensToSend = 560 * token; 
+                let dailyAmount = 0;
+
+                await kycVerificationContract.verifyMonthlyLimitKYC(tokensToSend, dailyAmount, 1);
             });
 
             it("should throw when monthly amount is bigger than the monthly limit", async () => {
                 let tokensToSend = validTokensToSend; 
                 let monthlyAmount = invalidAmount;
 
-                await expectThrow(kycVerificationContract.verifyMontlyLimitKYC(tokensToSend, monthlyAmount, 1));
+                await expectThrow(kycVerificationContract.verifyMonthlyLimitKYC(tokensToSend, monthlyAmount, 1));
             });
 
-            it("should throw when the sended token will pass the limit", async () => {
+            it("should throw when the sent token will pass the limit", async () => {
                 let tokensToSend = invalidTokensToSend; 
                 let monthlyAmount = validAmount;
 
-                await expectThrow(kycVerificationContract.verifyMontlyLimitKYC(tokensToSend, monthlyAmount, 1));
+                await expectThrow(kycVerificationContract.verifyMonthlyLimitKYC(tokensToSend, monthlyAmount, 1));
             });
         });
 
         describe("Testing Max Balance Limit - Anonymous Users", () => {
             it("should not throw if all requirements are passed", async () => {
                 let tokensToSend = 5 * token; // 5 AIUR tokens
+                let userBalance = 30 * token; // User balance = 30 AIUR tokens
+
+                await kycVerificationContract.verifyMaxBalanceKYC(tokensToSend, userBalance, 0);
+            });
+
+            it("should not throw if the user balance has the exact value of max balance limit", async () => {
+                let tokensToSend = 30 * token; // 30 AIUR tokens
                 let userBalance = 30 * token; // User balance = 30 AIUR tokens
 
                 await kycVerificationContract.verifyMaxBalanceKYC(tokensToSend, userBalance, 0);
@@ -429,6 +478,13 @@ contract('KYCVerification', function (accounts) {
                 await kycVerificationContract.verifyMaxBalanceKYC(tokensToSend, userBalance, 1);
             });
 
+            it("should not throw if the user balance has the exact value of max balance limit", async () => {
+                let tokensToSend = 30 * token; // 30 AIUR tokens
+                let userBalance = 250 * token; // User balance = 30 AIUR tokens
+
+                await kycVerificationContract.verifyMaxBalanceKYC(tokensToSend, userBalance, 1);
+            });
+
             it("should throw if token amount is equal to zero", async () => {
                 let tokensToSend = 0;
                 let userBalance = 30 * token; // User balance = 30 AIUR tokens
@@ -451,7 +507,7 @@ contract('KYCVerification', function (accounts) {
         const hookOperatorAddress = accounts[5];
 
         const USER_KYC_STATUS = {
-            ANONIMNOUS: 0,
+            ANONYMOUS: 0,
             SEMI_VERIFIED: 1,
             VERIFIED: 2,
             UNDEFINED: 3
@@ -487,44 +543,44 @@ contract('KYCVerification', function (accounts) {
         });
 
         it("should not throw if all requires are valid", async () => {
-            await userFactoryContract.createNewUser(userOneAddress, USER_KYC_STATUS.ANONIMNOUS, {from: userCreator});
+            await userFactoryContract.createNewUser(userOneAddress, USER_KYC_STATUS.ANONYMOUS, {from: userCreator});
 
             let tokensToSend = (2 * token); // 15 AIUR tokens
-            let userAddress = await userFactoryContract.getUser(userOneAddress);
+            let userAddress = await userFactoryContract.getUserContract(userOneAddress);
 
-            await kycVerificationContract.isValidKYCUserSender(userAddress, tokensToSend, USER_KYC_STATUS.ANONIMNOUS);
+            await kycVerificationContract.isValidKYCUserSender(userAddress, tokensToSend, USER_KYC_STATUS.ANONYMOUS);
         });
 
         it("should throw when weekly limit will be passed", async () => {
-            await userFactoryContract.createNewUser(userOneAddress, USER_KYC_STATUS.ANONIMNOUS, {from: userCreator});
+            await userFactoryContract.createNewUser(userOneAddress, USER_KYC_STATUS.ANONYMOUS, {from: userCreator});
 
             // Weekly limit is 60 AIUR Tokens
             let tokensToIncrease = (58 * token); // 58 AIUR tokens
             let tokensToSend = (8 * token); // 8 AIUR tokens
 
-            let userAddress = await userFactoryContract.getUser(userOneAddress);
+            let userAddress = await userFactoryContract.getUserContract(userOneAddress);
             let userInstance = await IUserContract.at(userAddress);
 
             await userInstance.increaseDailyTransactionVolumeSending(tokensToIncrease, {from: hookOperatorAddress});
-            await expectThrow(kycVerificationContract.isValidKYCUserSender(userAddress, tokensToSend, USER_KYC_STATUS.ANONIMNOUS));
+            await expectThrow(kycVerificationContract.isValidKYCUserSender(userAddress, tokensToSend, USER_KYC_STATUS.ANONYMOUS));
         });
 
         it("should not throw when weekly limit was passed the previous week", async () => {
-            await userFactoryContract.createNewUser(userTwoAddress, USER_KYC_STATUS.ANONIMNOUS, {from: userCreator});
+            await userFactoryContract.createNewUser(userTwoAddress, USER_KYC_STATUS.ANONYMOUS, {from: userCreator});
 
             // Weekly limit is 60 AIUR Tokens
             let tokensToIncrease = (58 * token); // 58 AIUR tokens
             let tokensToSend = (8 * token); // 8 AIUR tokens
 
-            let userAddress = await userFactoryContract.getUser(userTwoAddress);
+            let userAddress = await userFactoryContract.getUserContract(userTwoAddress);
             let userInstance = await IUserContract.at(userAddress);
 
             await userInstance.increaseDailyTransactionVolumeSending(tokensToIncrease, {from: hookOperatorAddress});
-            await expectThrow(kycVerificationContract.isValidKYCUserSender(userAddress, tokensToSend, USER_KYC_STATUS.ANONIMNOUS));
+            await expectThrow(kycVerificationContract.isValidKYCUserSender(userAddress, tokensToSend, USER_KYC_STATUS.ANONYMOUS));
 
             await timeTravel(web3, WEEK);
 
-            await kycVerificationContract.isValidKYCUserSender(userAddress, tokensToSend, USER_KYC_STATUS.ANONIMNOUS);
+            await kycVerificationContract.isValidKYCUserSender(userAddress, tokensToSend, USER_KYC_STATUS.ANONYMOUS);
         });
     });
 
@@ -533,7 +589,7 @@ contract('KYCVerification', function (accounts) {
         const userManager = accounts[4];
 
         const USER_KYC_STATUS = {
-            ANONIMNOUS: 0,
+            ANONYMOUS: 0,
             SEMI_VERIFIED: 1,
             VERIFIED: 2,
             UNDEFINED: 3
@@ -551,11 +607,11 @@ contract('KYCVerification', function (accounts) {
             await userFactoryContract.setKYCVerificationInstance(kycVerificationContract.address, {from: owner});
             await userFactoryContract.setUserManagerAddress(userManager, {from: owner});
             await userFactoryContract.setUserCreator(userCreator, {from: owner});
-            await userFactoryContract.createNewUser(userOneAddress, USER_KYC_STATUS.ANONIMNOUS, {from: userCreator});            
+            await userFactoryContract.createNewUser(userOneAddress, USER_KYC_STATUS.ANONYMOUS, {from: userCreator});            
         });
 
         it("should set blacklisted user to true", async () => {
-            let userAddress = await userFactoryContract.getUser(userOneAddress);
+            let userAddress = await userFactoryContract.getUserContract(userOneAddress);
             let userInstance = await IUserContract.at(userAddress);
 
             let isBlacklisted = await userInstance.isUserBlacklisted();
@@ -568,7 +624,7 @@ contract('KYCVerification', function (accounts) {
         });
 
         it("should throw if the method caller is not the contract kyc admin", async () => {
-            let userAddress = await userFactoryContract.getUser(userOneAddress);
+            let userAddress = await userFactoryContract.getUserContract(userOneAddress);
             let userInstance = await IUserContract.at(userAddress);
 
             let isBlacklisted = await userInstance.isUserBlacklisted();
@@ -582,7 +638,7 @@ contract('KYCVerification', function (accounts) {
         });
 
         it("should set isBlacklisted to false when user if fully verified", async () => {
-            let userAddress = await userFactoryContract.getUser(userOneAddress);
+            let userAddress = await userFactoryContract.getUserContract(userOneAddress);
             let userInstance = await IUserContract.at(userAddress);
 
             let isBlacklisted = await userInstance.isUserBlacklisted();
@@ -608,7 +664,7 @@ contract('KYCVerification', function (accounts) {
         const userManager = accounts[4];
 
         const USER_KYC_STATUS = {
-            ANONIMNOUS: 0,
+            ANONYMOUS: 0,
             SEMI_VERIFIED: 1,
             VERIFIED: 2,
             UNDEFINED: 3
@@ -626,11 +682,11 @@ contract('KYCVerification', function (accounts) {
             await userFactoryContract.setKYCVerificationInstance(kycVerificationContract.address, {from: owner});
             await userFactoryContract.setUserManagerAddress(userManager, {from: owner});
             await userFactoryContract.setUserCreator(userCreator, {from: owner});
-            await userFactoryContract.createNewUser(userOneAddress, USER_KYC_STATUS.ANONIMNOUS, {from: userCreator});            
+            await userFactoryContract.createNewUser(userOneAddress, USER_KYC_STATUS.ANONYMOUS, {from: userCreator});            
         });
 
         it("should ban user", async () => {
-            let userAddress = await userFactoryContract.getUser(userOneAddress);
+            let userAddress = await userFactoryContract.getUserContract(userOneAddress);
             let userInstance = await IUserContract.at(userAddress);
 
             let isBanned = await userInstance.isUserBanned();
@@ -643,7 +699,7 @@ contract('KYCVerification', function (accounts) {
         });
 
         it("should throw if the method caller is not the contract kyc admin", async () => {
-            let userAddress = await userFactoryContract.getUser(userOneAddress);
+            let userAddress = await userFactoryContract.getUserContract(userOneAddress);
             let userInstance = await IUserContract.at(userAddress);
 
             let isBanned = await userInstance.isUserBanned();
@@ -670,7 +726,7 @@ contract('KYCVerification', function (accounts) {
         const userCreator = accounts[3];
 
         const USER_KYC_STATUS = {
-            ANONIMNOUS: 0,
+            ANONYMOUS: 0,
             SEMI_VERIFIED: 1,
             VERIFIED: 2,
             UNDEFINED: 3
@@ -691,15 +747,15 @@ contract('KYCVerification', function (accounts) {
             await userFactoryContract.setKYCVerificationInstance(kycVerificationContract.address, {from: owner});
             await userFactoryContract.setUserManagerAddress(userManager.address, {from: owner});
             await userFactoryContract.setUserCreator(userCreator, {from: owner});
-            await userFactoryContract.createNewUser(userOneAddress, USER_KYC_STATUS.ANONIMNOUS, {from: userCreator});            
+            await userFactoryContract.createNewUser(userOneAddress, USER_KYC_STATUS.ANONYMOUS, {from: userCreator});            
         });
 
         it("should update kyc status", async () => {
-            let userAddress = await userFactoryContract.getUser(userOneAddress);
+            let userAddress = await userFactoryContract.getUserContract(userOneAddress);
             let userInstance = await IUserContract.at(userAddress);
 
             let userCurrentKYCStatus = await userManager.isUserKYCVerified(userOneAddress);
-            assert.equal(userCurrentKYCStatus, USER_KYC_STATUS.ANONIMNOUS, `Invalid KYC status should be ${USER_KYC_STATUS.ANONIMNOUS} but returned ${userCurrentKYCStatus}`);
+            assert.equal(userCurrentKYCStatus, USER_KYC_STATUS.ANONYMOUS, `Invalid KYC status should be ${USER_KYC_STATUS.ANONYMOUS} but returned ${userCurrentKYCStatus}`);
 
             await kycVerificationContract.updateUserKYCStatus(userOneAddress, USER_KYC_STATUS.SEMI_VERIFIED, {from: kycAdmin});
 

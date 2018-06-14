@@ -28,6 +28,18 @@ contract('WhitelistedCrowdsale', function (accounts) {
         });
     });
 
+    function generateUsers(usersCount) {
+        let users = [];
+        
+        for (let i = 1; i < usersCount + 1; i++) {
+            if (i % 10 != 0) {
+                users.push(`0x${i}`);
+            }
+        }
+
+        return users;
+    }
+
     describe('Pre Sales Special User', () => {
 
         async function proccessWhiteListUserRateSet(userRate) {
@@ -94,7 +106,7 @@ contract('WhitelistedCrowdsale', function (accounts) {
 
         describe('Multiple users', () => {
 
-            it('should add multiple users', async () => {
+            it('should add multiple presales users', async () => {
                 const USERS = generateUsers(2);
                 const USER_RATE = 150;
 
@@ -108,27 +120,15 @@ contract('WhitelistedCrowdsale', function (accounts) {
             });
 
             it('should throw when the passed users count is over the limit', async () => {
-                // We need 241 users to over the limit, but generateUsers skippes the multiples of ten numbers,
-                // that is why we use 268 which is equivalent to 240
-                const USERS = generateUsers(268);
+                // We need 201 users to over the limit, but generateUsers skips the multiples of ten numbers,
+                // that is why we use 223 which is equivalent to 201
+                const USERS = generateUsers(223);
                 const USER_RATE = 150;
 
                 await expectThrow(
                     whitelistedCrowdsaleInstance.setMultiplePreSalesSpecialUsers(USERS, USER_RATE, {from: LISTER})
                 );
             });
-
-            function generateUsers(usersCount) {
-                let users = [];
-                
-                for (let i = 1; i < usersCount + 1; i++) {
-                    if (i % 10 != 0) {
-                        users.push(`0x${i}`);
-                    }
-                }
-
-                return users;
-            }
         });
         
     });
@@ -164,6 +164,31 @@ contract('WhitelistedCrowdsale', function (accounts) {
             it('should throw if the input user address is invalid', async () => {
                 await expectThrow(
                     whitelistedCrowdsaleInstance.addPublicSalesSpecialUser("0x0", {from: LISTER})
+                );
+            });
+        });
+
+        describe('Add Multiple Public Sales Special Users', () => {
+            it('should add multiple public sales users', async () => {
+                const USERS = generateUsers(2);
+
+                let tx = await whitelistedCrowdsaleInstance.addMultiplePublicSalesSpecialUser(USERS, {from: LISTER});
+
+                let firstAddedUserRate = await whitelistedCrowdsaleInstance.publicSalesSpecialUsers.call(USERS[0]);
+                let secondAddedUserRate = await whitelistedCrowdsaleInstance.publicSalesSpecialUsers.call(USERS[1]);
+
+                assert.isTrue(firstAddedUserRate, "User is not set as public sales special one");
+                assert.isTrue(secondAddedUserRate, "User is not set as public sales special one");
+            });
+
+            it('should throw when the passed users count is over the limit', async () => {
+                // We need 201 users to over the limit, but generateUsers skips the multiples of ten numbers,
+                // that is why we use 223 which is equivalent to 201
+                const USERS = generateUsers(223);
+                const USER_RATE = 150;
+
+                await expectThrow(
+                    whitelistedCrowdsaleInstance.addMultiplePublicSalesSpecialUser(USERS, {from: LISTER})
                 );
             });
         });

@@ -10,23 +10,23 @@ contract DataContract is IDataContract, OwnableUpgradeableImplementation, Linked
     uint256 public taxPercentage;
     uint256 public taxationPeriodInSeconds;
 
-    function getTaxPercentage() public view returns(uint256 _taxPercentage) {
+    function getTaxPercentage() external view returns(uint256 _taxPercentage) {
         return taxPercentage;
     }
 
-    function setTaxPercentage(uint256 _taxPercentage) public onlyUserManager {
+    function setTaxPercentage(uint256 _taxPercentage) external onlyUserManager {
         taxPercentage = _taxPercentage;
 
-        emit LogSettedTaxPercentage(taxPercentage);
+        emit LogTaxPercentageSet(taxPercentage);
     }
 
-    function getTaxationPeriodInSeconds() public view returns(uint256 _taxationPeriodInSeconds) {
+    function getTaxationPeriodInSeconds() external view returns(uint256 _taxationPeriodInSeconds) {
         return taxationPeriodInSeconds;
     }
 
-    function setTaxationPeriodInSeconds(uint256 _taxationPeriodInSeconds) public onlyUserManager {
+    function setTaxationPeriodInSeconds(uint256 _taxationPeriodInSeconds) external onlyUserManager {
         taxationPeriodInSeconds = _taxationPeriodInSeconds;
         
-        emit LogSeetedTaxationPeriodInSecond(taxationPeriodInSeconds);
+        emit LogTaxationPeriodInSecondsSet(taxationPeriodInSeconds);
     }
 }

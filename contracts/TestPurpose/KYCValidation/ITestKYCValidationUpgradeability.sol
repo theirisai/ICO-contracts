@@ -76,7 +76,7 @@ contract ITestKYCValidationUpgradeability is IOwnableUpgradeableImplementation {
 
     /**
         KYC Settings:
-        The owner set a user who will be responsible for the KYC Verication
+        The owner set a user who will be responsible for the KYC Verification
     */
     function setKYCUserOwner(address userOwner) public;
 
@@ -105,7 +105,7 @@ contract ITestKYCValidationUpgradeability is IOwnableUpgradeableImplementation {
 
     function verifyWeeklyLimitKYC(uint256 tokensToSend, uint256 weeklyAmount, uint256 kycStatus) public view;
 
-    function verifyMontlyLimitKYC(uint256 tokensToSend, uint256 monthlyAmount, uint256 kycStatus) public view;
+    function verifyMonthlyLimitKYC(uint256 tokensToSend, uint256 monthlyAmount, uint256 kycStatus) public view;
 
     function verifyMaxBalanceKYC(uint256 tokensToSend, uint256 userBalance, uint256 kycStatus) public view;
 

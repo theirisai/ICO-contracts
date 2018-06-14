@@ -83,22 +83,22 @@ contract('Vesting', function (accounts) {
         describe('Seventy Five Percentage Claimer', () => {
             it('should set seventy five percentage claimer correctly', async () => {
                 const NEW_CLAIMER = accounts[4];
-                await vestingInstance.setSeventyFivePercantageClaimer(NEW_CLAIMER, {from: OWNER});
+                await vestingInstance.setSeventyFivePercentageClaimer(NEW_CLAIMER, {from: OWNER});
     
                 let seventyFivePercentageClaimer = await vestingInstance.seventyFivePercentageClaimer.call();
     
                 assert.equal(seventyFivePercentageClaimer, NEW_CLAIMER, "New claimer is not set correctly");
             });
     
-            it('should throw if the new calimer input address is invalid', async () => {
+            it('should throw if the new claimer input address is invalid', async () => {
                 await expectThrow(
-                    vestingInstance.setSeventyFivePercantageClaimer("0x0", {from: OWNER})
+                    vestingInstance.setSeventyFivePercentageClaimer("0x0", {from: OWNER})
                 );  
             });
     
             it('should throw if non-owner try to set seventy five percentage', async () => {
                 await expectThrow(
-                    vestingInstance.setSeventyFivePercantageClaimer(CLAIMER, {from: NOT_OWNER})
+                    vestingInstance.setSeventyFivePercentageClaimer(CLAIMER, {from: NOT_OWNER})
                 );  
             });
         });
@@ -216,7 +216,7 @@ contract('Vesting', function (accounts) {
     
             it('should withdraw twenty five percentage of contract balance (Owner invoker)', async () => {
                 let claimerBalance = await processWithdraw(DAY, async function() {
-                    await vestingInstance.withdrawTwentyFivePercantage({from: OWNER});
+                    await vestingInstance.withdrawTwentyFivePercentage({from: OWNER});
                 });
 
                 let isTwentyFivePercentageWitdrawn = await vestingInstance.isTwentyFivePercentageClaimed.call();
@@ -233,7 +233,7 @@ contract('Vesting', function (accounts) {
                 let gasCost;
 
                 let claimerBalance = await processWithdraw(DAY, async function() {
-                    let tx = await vestingInstance.withdrawTwentyFivePercantage({from: CLAIMER});
+                    let tx = await vestingInstance.withdrawTwentyFivePercentage({from: CLAIMER});
                     gasCost = await getTransactionGasCost(tx['tx']);
                 });
 
@@ -249,23 +249,23 @@ contract('Vesting', function (accounts) {
     
             it('should throw if non-claimer try to withdraw', async () => {
                 await expectThrow(
-                    vestingInstance.withdrawTwentyFivePercantage({from: NOT_OWNER})
+                    vestingInstance.withdrawTwentyFivePercentage({from: NOT_OWNER})
                 );
             });
     
             it('should throw if twenty five percentage has been already withdrawn', async () => {
                 await timeTravel(web3, DAY);
     
-                await vestingInstance.withdrawTwentyFivePercantage({from: OWNER});
+                await vestingInstance.withdrawTwentyFivePercentage({from: OWNER});
     
                 await expectThrow(
-                    vestingInstance.withdrawTwentyFivePercantage({from: OWNER})
+                    vestingInstance.withdrawTwentyFivePercentage({from: OWNER})
                 );
             });
     
             it('should throw if try to withdraw before the allowed time', async () => {
                 await expectThrow(
-                    vestingInstance.withdrawTwentyFivePercantage({from: OWNER})
+                    vestingInstance.withdrawTwentyFivePercentage({from: OWNER})
                 );
             });
         });
@@ -290,7 +290,7 @@ contract('Vesting', function (accounts) {
     
             it('should withdraw seventy five percentage of contract balance when the rest ethers is not withdrawn (Owner invoker)', async () => {
                 let claimerBalance = await processWithdraw(seventyFivePercentageStartTime, async function() {
-                    await vestingInstance.withdrawSeventyFivePercantage({from: OWNER});
+                    await vestingInstance.withdrawSeventyFivePercentage({from: OWNER});
                 });
 
                 assert(
@@ -304,7 +304,7 @@ contract('Vesting', function (accounts) {
                 let gasCost;
 
                 let claimerBalance = await processWithdraw(seventyFivePercentageStartTime, async function() {
-                    let tx = await vestingInstance.withdrawSeventyFivePercantage({from: CLAIMER});
+                    let tx = await vestingInstance.withdrawSeventyFivePercentage({from: CLAIMER});
                     gasCost = await getTransactionGasCost(tx['tx']);
                 });
 
@@ -316,12 +316,12 @@ contract('Vesting', function (accounts) {
             });
     
             it('should withdraw the whole balance when 25% is already withdrawn', async () => {
-                await vestingInstance.withdrawTwentyFivePercantage({from: OWNER});
+                await vestingInstance.withdrawTwentyFivePercentage({from: OWNER});
     
                 let vestingInstanceBalance = await web3.eth.getBalance(vestingInstance.address);
     
                 let claimerBalance = await processWithdraw(seventyFivePercentageStartTime, async function() {
-                    await vestingInstance.withdrawSeventyFivePercantage({from: OWNER});
+                    await vestingInstance.withdrawSeventyFivePercentage({from: OWNER});
                 });
 
                 assert(
@@ -341,13 +341,13 @@ contract('Vesting', function (accounts) {
                 await timeTravel(web3, startTime + 8 * WEEK);
     
                 await expectThrow(
-                    vestingInstance.withdrawSeventyFivePercantage({from: NOT_OWNER})
+                    vestingInstance.withdrawSeventyFivePercentage({from: NOT_OWNER})
                 );
             });
     
             it('should throw if try to withdraw before the allowed time', async () => {
                 await expectThrow(
-                    vestingInstance.withdrawSeventyFivePercantage({from: OWNER})
+                    vestingInstance.withdrawSeventyFivePercentage({from: OWNER})
                 );
             });
         });
@@ -362,10 +362,10 @@ contract('Vesting', function (accounts) {
         const USER_ONE = accounts[4];
         const SYSTEM = accounts[5];
 
-        const REGULAR_RATE = 100;
+        const REGULAR_RATE = 100000; // 100 rate
 
         const INITIAL_TOKENS_AMOUNT = 2000 * WEI_IN_ETHER; // 2000 tokens/ The limit is 1 600
-        const TOTAL_SUPPLY = 78000 * WEI_IN_ETHER; // Total supply + initial tokens = total sypply of 80000 tokens
+        const TOTAL_SUPPLY = 78000 * WEI_IN_ETHER; // Total supply + initial tokens = total supply of 80000 tokens
 
         const BALANCE_PERCENTAGE_LIMIT = 2; // A user can have to 2% from the total supply(1 600)
 
@@ -380,7 +380,7 @@ contract('Vesting', function (accounts) {
 
         /*
             We have 2 000 tokens and the balance limit is 1 600
-            That means that the tokens amount wich will be refunded to us is: 2 000 - 1 600
+            That means that the tokens amount which will be refunded to us is: 2 000 - 1 600
 
         */
         const REFUNDED_TOKENS = 400 * WEI_IN_TOKEN; // 400 tokens

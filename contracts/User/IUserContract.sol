@@ -1,98 +1,122 @@
 pragma solidity ^0.4.21;
 
 contract IUserContract {
-    event LogNewUserCreate(uint256 _generationRatio, uint256 _KYCStatus, uint256 _lastTransationTime);
-    event LogSettedGenerationRatio(uint256 generationRatio);
-    event LogSettedKYCStatus(uint256 KYCStatus);
-    event LogSettedLastTransactionTime(uint256 lastTransationTime);
-    event LogUserPolicyUpdate(bool termsAndConditions, bool AML, bool constitution, bool CLA);
-    event LogDailyTransactionVolumeSendingIncrease(uint256 currentDay, uint256 transactionVolume);
-    event LogDailyTransactionVolumeReceivingIncrease(uint256 currentDay, uint256 transactionVolume);
-    event LogWeeklyTransactionVolumeSendingIncrease(uint256 currentWeek, uint256 transactionVolume);
-    event LogWeeklyTransactionVolumeReceivingIncrease(uint256 currentWeek, uint256 transactionVolume);
-    event LogMonthlyTransactionVolumeSendingIncrease(uint256 currentMonth, uint256 transactionVolume);
-    event LogMonthlyTransactionVolumeReceivingIncrease(uint256 currentMonth, uint256 transactionVolume);
+    event LogNewExchangeUserCreate(uint256 _KYCStatus);
+    event LogNewUserCreate(uint256 _KYCStatus);
+    
+    event LogGenerationRatioUpdate(uint256 _generationRatio);
+    event LogKYCStatusUpdate(uint256 _KYCStatus);
+    event LogLastTransactionTimeUpdate(uint256 _lastTransactionTime);
+    event LogUserPolicyUpdate(bool _termsAndConditions, bool _AML, bool _constitution, bool _CLA);
 
+    event LogAsFounderMark();
+    event LogUserBlacklistedStatusSet(bool _blacklistedStatus);
+    event LogUserBan();
+
+    event LogDailyTransactionVolumeSendingIncrease(uint256 _currentDay, uint256 _transactionVolume);
+    event LogDailyTransactionVolumeReceivingIncrease(uint256 _currentDay, uint256 _transactionVolume);
+
+    event LogWeeklyTransactionVolumeSendingIncrease(uint256 _currentWeek, uint256 _transactionVolume);
+    event LogWeeklyTransactionVolumeReceivingIncrease(uint256 _currentWeek, uint256 _transactionVolume);
+    
+    event LogMonthlyTransactionVolumeSendingIncrease(uint256 _currentMonth, uint256 _transactionVolume);
+    event LogMonthlyTransactionVolumeReceivingIncrease(uint256 _currentMonth, uint256 _transactionVolume);
 
     /**
         Main Functions
     */
-    function initUser(uint256 _generationRatio, uint256 _KYCStatus, uint256 _lastTransationTime) external;
+    function initExchangeUser(uint256 _KYCStatus) external;
+
+    function initKYCUser(uint256 _KYCStatus) external;
+
+    function initUser(uint256 _KYCStatus) internal;
+
+    function isValidUser() external view returns(bool);
 
     function getUserData() external view returns
     (
         uint256 _generationRatio, 
         uint256 _KYCStatus, 
-        uint256 _lastTransationTime, 
+        uint256 _lastTransactionTime, 
         bool _isBlacklistedUser,
         bool _termsAndConditionsAcceptance,
         bool _AMLAcceptance,
         bool _constitutionSign,
-        bool _commonLicenseAgreementSign
+        bool _commonLicenseAgreementSign,
+        bool _isFounder
     ); 
 
-    function updateUserPolicy(bool termsAndConditions, bool AML, bool constitution, bool CLA) public;
+    function isExchangeUser() public view returns(bool);
 
-    function isUserPolicyCorrect() public view returns(bool);
+    function updateUserPolicy(bool _termsAndConditions, bool _AML, bool _constitution, bool _CLA) external;
+
+    function isUserPolicyAccepted() public view returns(bool);
 
     function updateGenerationRatio(uint256 _generationRatio) external;
     
-    function updateKYCStatus(uint256 newKYCStatus) external;
+    function updateKYCStatus(uint256 _newKYCStatus) external;
 
-    function updateLastTransactionTime(uint256 _lastTransationTime) external;
+    function updateLastTransactionTime(uint256 _lastTransactionTime) external;
+
+    /**
+        Founder - User
+    */
+    function markAsFounder() external;
+
+    function isFounderUser() external view returns(bool);
 
     /**
         Blacklisted - User
     */
-    function setUserBlacklistedStatus(bool _shouldBeBlacklisted) public;
+    function setUserBlacklistedStatus(bool _shouldBeBlacklisted) external;
 
-    function isUserBlacklisted() public view returns(bool _isBlacklisted);
+    function isUserBlacklisted() external view returns(bool _isBlacklisted);
     /**
         Banned - User
     */
-    function banUser() public;
+    function banUser() external;
 
-    function isUserBanned() public view returns(bool _isBanned);
+    function isUserBanned() external view returns(bool _isBanned);
 
     /**
         Daily transaction volume
     */
-    function increaseDailyTransactionVolumeSending(uint256 _transactionVolume) public;
+    function increaseDailyTransactionVolumeSending(uint256 _transactionVolume) external;
 
-    function getDailyTransactionVolumeSending() public view returns(uint256 _dailyTransactionVolume);
+    function getDailyTransactionVolumeSending() external view returns(uint256 _dailyTransactionVolume);
 
     /**
         Daily transaction volume - Receiving
     */
-    function increaseDailyTransactionVolumeReceiving(uint256 _transactionVolume) public;
+    function increaseDailyTransactionVolumeReceiving(uint256 _transactionVolume) external;
 
-    function getDailyTransactionVolumeReceiving() public view returns(uint256 _dailyTransactionVolume);
+    function getDailyTransactionVolumeReceiving() external view returns(uint256 _dailyTransactionVolume);
 
     /**
         Weekly transaction volume
     */
-    function increaseWeeklyTransactionVolumeSending(uint256 _transactionVolume) public;
+    function increaseWeeklyTransactionVolumeSending(uint256 _transactionVolume) external;
 
-    function getWeeklyTransactionVolumeSending() public view returns(uint256 _weeklyTransactionVolume);
+    function getWeeklyTransactionVolumeSending() external view returns(uint256 _weeklyTransactionVolume);
 
     /**
         Weekly transaction volume - Receiving
     */
-    function increaseWeeklyTransactionVolumeReceiving(uint256 _transactionVolume) public;
+    function increaseWeeklyTransactionVolumeReceiving(uint256 _transactionVolume) external;
 
-    function getWeeklyTransactionVolumeReceiving() public view returns(uint256 _weeklyTransactionVolume);
+    function getWeeklyTransactionVolumeReceiving() external view returns(uint256 _weeklyTransactionVolume);
 
     /**
         Monthly transaction volume
     */
-    function increaseMonthlyTransactionVolumeSending(uint256 _transactionVolume) public;
+    function increaseMonthlyTransactionVolumeSending(uint256 _transactionVolume) external;
 
-    function getMonthlyTransactionVolumeSending() public view returns(uint256 _monthlyTransactionVolume);
+    function getMonthlyTransactionVolumeSending() external view returns(uint256 _monthlyTransactionVolume);
 
     /**
         Monthly transaction volume - Receiving
     */
-    function increaseMonthlyTransactionVolumeReceiving(uint256 _transactionVolume) public;
+    function increaseMonthlyTransactionVolumeReceiving(uint256 _transactionVolume) external;
 
-    function getMonthlyTransactionVolumeReceiving() public view returns(uint256 _monthlyTransactionVolume);
+    function getMonthlyTransactionVolumeReceiving() external view returns(uint256 _monthlyTransactionVolume);
 }

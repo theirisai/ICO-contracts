@@ -43,7 +43,7 @@ var ProjectInitializator = (function () {
 
     let initWithAddress = async function(_owner) {
 
-        const rate = 100; // 0.01 eth = 1 token
+        const rate = 100000; // 100 rate ( 1 ether = 100 tokens )
 
         await initUserManager(_owner);
         await initDataContract(_owner);
@@ -178,7 +178,7 @@ var ProjectInitializator = (function () {
     let relateHookOperatorContract = async function(owner) {
         await hookOperatorContract.setUserManager(userManagerContract.address, {from: owner});
         await hookOperatorContract.setICOToken(icoTokenContract.address, {from: owner});
-        await hookOperatorContract.setKYCVerficationContract(kycVerificationContract.address, {from: owner});
+        await hookOperatorContract.setKYCVerificationContract(kycVerificationContract.address, {from: owner});
     }
 
     let relateIcoTokenContract = async function(owner) {
@@ -192,11 +192,17 @@ var ProjectInitializator = (function () {
         await kycVerificationContract.setUserFactory(userFactoryContract.address, {from: owner});
     }
 
-    let createVerifiedUsers = async function(owner, users) {
-        let verifiedStatus = 2;
+    const VERIFIED_STATUS = 2;
 
+    let createVerifiedUsers = async function(owner, users) {
         for (let i = 0; i < users.length; i++) {
-            await userFactoryContract.createNewUser(users[i], verifiedStatus, {from: owner});            
+            await userFactoryContract.createNewUser(users[i], VERIFIED_STATUS, {from: owner});           
+        }
+    }
+
+    let createExchangedUsers = async function(owner, users) {
+        for (let i = 0; i < users.length; i++) {
+            await userFactoryContract.createExchangeUser(users[i], VERIFIED_STATUS, {from: owner});         
         }
     }
 
@@ -231,6 +237,7 @@ var ProjectInitializator = (function () {
         relateUserFactoryContract: relateUserFactoryContract,
         relateKYCVerificationContract: relateKYCVerificationContract,
         createVerifiedUsers: createVerifiedUsers,
+        createExchangedUsers: createExchangedUsers,
         getContracts: getContracts
     }
 })();

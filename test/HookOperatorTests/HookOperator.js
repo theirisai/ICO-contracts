@@ -42,7 +42,7 @@ contract('HookOperator', function (accounts) {
 				await hookOperatorContract.setUserManager(userManagerInstance.address, {from: owner});
 				let userManager = await hookOperatorContract.getUserManager({from: owner});
 
-				await assert.equal(userManagerInstance.address, userManager, "User manager is not correcly set");
+				await assert.equal(userManagerInstance.address, userManager, "User manager is not correctly set");
 			});
 	
 			it('should not set user manager if the method caller is not the owner', async () => {
@@ -81,7 +81,7 @@ contract('HookOperator', function (accounts) {
 			it('should set KYC Verification contract correctly', async () => {
 				let kycVerificationContract = contracts.kycVerificationContract;
 
-				await hookOperatorContract.setKYCVerficationContract(kycVerificationContract.address, {from: owner});
+				await hookOperatorContract.setKYCVerificationContract(kycVerificationContract.address, {from: owner});
 				let kycVerificationContractAddress = await hookOperatorContract.getKYCVerificationContractAddress();
 
 				assert.equal(kycVerificationContract.address, kycVerificationContractAddress, `KYCVerification is not correctly set. Address should be ${kycVerificationContract.address} but returned ${kycVerificationContractAddress}`);
@@ -90,13 +90,77 @@ contract('HookOperator', function (accounts) {
 			it('should not set KYC Verification contract if the method caller is not the contract owner', async () => {
 				let kycVerificationContract = contracts.kycVerificationContract;
 
-				assert.expectRevert(hookOperatorContract.setKYCVerficationContract(kycVerificationContract.address, {from: malicious}));
+				assert.expectRevert(hookOperatorContract.setKYCVerificationContract(kycVerificationContract.address, {from: malicious}));
 			});
 
-			it('should not process setKYCVerficationContract when input parameter is an invalid address', async () => {
-				await assert.expectRevert(hookOperatorContract.setKYCVerficationContract("0x0", {from: owner}));
+			it('should not process setKYCVerificationContract when input parameter is an invalid address', async () => {
+				await assert.expectRevert(hookOperatorContract.setKYCVerificationContract("0x0", {from: owner}));
 			});
 		});
+
+		describe('Balance Percentage Limit', () => {
+            const LIMIT = 2; // 2% of total supply
+
+            it('should set balance percentage limit correctly', async () => {
+                await hookOperatorContract.setBalancePercentageLimit(LIMIT);
+                let limit = await hookOperatorContract.getBalancePercentageLimit();
+
+                assert.bigNumberEQNumber(limit, LIMIT);
+            });
+
+            it('should throw if non-owner try to set balance percentage limit', async () => {
+                await expectThrow(
+                    hookOperatorContract.setBalancePercentageLimit(LIMIT, {from: malicious})
+                );          
+            });
+
+            it('should throw if limit is 0', async () => {
+                await expectThrow(
+                    hookOperatorContract.setBalancePercentageLimit(0, {from: malicious})
+                );  
+            });
+
+            it('should throw if limit is 100 or higher', async () => {
+                await expectThrow(
+                    hookOperatorContract.setBalancePercentageLimit(100, {from: malicious})
+                );  
+            });
+        });
+
+        describe('Over Balance Limit Holder', () => {
+            const OVER_BALANCE_LIMIT_HOLDER = accounts[3];
+            const IS_OVER_BALANCE_LIMIT_HOLDER = true;
+
+            it('should add over balance limit holder', async () => {
+                await hookOperatorContract.setOverBalanceLimitHolder(OVER_BALANCE_LIMIT_HOLDER, IS_OVER_BALANCE_LIMIT_HOLDER, {from: owner});
+                let isOverBalanceLimitHolder = await hookOperatorContract.isOverBalanceLimitHolder(OVER_BALANCE_LIMIT_HOLDER);
+
+                assert.isTrue(isOverBalanceLimitHolder, "Over balance limit holder is not added successfully");
+            });
+
+            it('should remove over balance limit holder', async () => {
+                await hookOperatorContract.setOverBalanceLimitHolder(OVER_BALANCE_LIMIT_HOLDER, IS_OVER_BALANCE_LIMIT_HOLDER, {from: owner});
+                let isOverBalanceLimitHolderAdded = await hookOperatorContract.isOverBalanceLimitHolder(OVER_BALANCE_LIMIT_HOLDER);
+
+                await hookOperatorContract.setOverBalanceLimitHolder(OVER_BALANCE_LIMIT_HOLDER, false, {from: owner});
+                let isOverBalanceLimitHolderRemoved = !(await hookOperatorContract.isOverBalanceLimitHolder(OVER_BALANCE_LIMIT_HOLDER)); 
+
+                assert.isTrue(isOverBalanceLimitHolderAdded, "Over balance limit holder is not added successfully");
+                assert.isTrue(isOverBalanceLimitHolderRemoved, "Over balance limit holder is not removed successfully");
+            });
+
+            it('should throw if non-owner try to set over balance limit holder', async () => {
+                await expectThrow(
+                    hookOperatorContract.setOverBalanceLimitHolder(OVER_BALANCE_LIMIT_HOLDER, IS_OVER_BALANCE_LIMIT_HOLDER, {from: malicious})
+                );
+            });
+
+            it('should throw if input address is invalid', async () => {
+                await expectThrow(
+                    hookOperatorContract.setOverBalanceLimitHolder("0x0", IS_OVER_BALANCE_LIMIT_HOLDER, {from: owner})
+                );
+            });
+        });
 	});
 
 	describe('Test Token Processes', () => {
@@ -124,7 +188,7 @@ contract('HookOperator', function (accounts) {
 			const tokensToSend = 1000000000000000000; // 1 tokens
 
         	const USER_KYC_STATUS = {
-            	ANONIMNOUS: 0,
+            	ANONYMOUS: 0,
             	SEMI_VERIFIED: 1,
             	VERIFIED: 2,
             	UNDEFINED: 3
@@ -159,23 +223,23 @@ contract('HookOperator', function (accounts) {
 				});
 
 				it('should not process onTransfer with invalid from address parameter', async () => {
-					await assert.expectRevert(hookOperatorContract.onTransfer("0x0", owner, TRANSFERABLE_TOKENS, {from: owner}));
+					await assert.expectRevert(hookOperatorContract.onTransfer("0x0", owner, TRANSFERABLE_TOKENS, {from: icoToken}));
 				});
 
 				it('should not process onTransfer with invalid to address parameter', async () => {
-					await assert.expectRevert(hookOperatorContract.onTransfer(owner, "0x0", TRANSFERABLE_TOKENS, {from: owner}));
+					await assert.expectRevert(hookOperatorContract.onTransfer(owner, "0x0", TRANSFERABLE_TOKENS, {from: icoToken}));
 				});
 
 				it('should not process onTransfer with zero tokens amount parameter', async () => {
-					await assert.expectRevert(hookOperatorContract.onTransfer(owner, owner, 0, {from: owner}));
+					await assert.expectRevert(hookOperatorContract.onTransfer(owner, owner, 0, {from: icoToken}));
 				});
 
 				it('should throw onTransfer if user is blacklisted', async () => {
 					await hookOperatorContract.onMint(userOneAddress, initialTokens, {from: icoToken});
 					await hookOperatorContract.onMint(userTwoAddress, initialTokens, {from: icoToken});
 
-					let userAddress = await userFactoryContract.getUser(userOneAddress);
-            		let userInstance = await IUserContract.at(userAddress);
+					let userContract = await userFactoryContract.getUserContract(userOneAddress);
+            		let userInstance = await IUserContract.at(userContract);
 
             		let isBlacklisted = await userInstance.isUserBlacklisted();
             		assert.equal(isBlacklisted, false, `At the beginning isBlacklisted should be false but it returned ${isBlacklisted}`);
@@ -194,8 +258,8 @@ contract('HookOperator', function (accounts) {
 					await hookOperatorContract.onMint(userOneAddress, initialTokens, {from: icoToken});
 					await hookOperatorContract.onMint(userTwoAddress, initialTokens, {from: icoToken});
 
-					let userAddress = await userFactoryContract.getUser(userOneAddress);
-            		let userInstance = await IUserContract.at(userAddress);
+					let userContract = await userFactoryContract.getUserContract(userOneAddress);
+            		let userInstance = await IUserContract.at(userContract);
 
             		let isBanned = await userInstance.isUserBanned();
             		assert.equal(isBanned, false, `At the beginning isBanned should be false but it returned ${isBanned}`);
@@ -211,8 +275,8 @@ contract('HookOperator', function (accounts) {
 				});
 
 				it('should throw onMint if user is banned', async () => {
-					let userAddress = await userFactoryContract.getUser(userOneAddress);
-            		let userInstance = await IUserContract.at(userAddress);
+					let userContract = await userFactoryContract.getUserContract(userOneAddress);
+            		let userInstance = await IUserContract.at(userContract);
 
             		let isBanned = await userInstance.isUserBanned();
 					assert.equal(isBanned, false, `At the beginning isBanned should be false but it returned ${isBanned}`);
@@ -224,6 +288,34 @@ contract('HookOperator', function (accounts) {
 
 					await expectThrow(hookOperatorContract.onMint(userOneAddress, initialTokens, {from: icoToken}));
 				});
+
+				it('should throw if "from" user is invalid', async () => {
+					let userContract = await userFactoryContract.getUserContract(userOneAddress);
+					userInstance = await IUserContract.at(userContract);
+
+					await userInstance.updateUserPolicy(
+						true, // TermsAndConditions,
+						true, // AML,
+						false, // Constitution,
+						true, // CommonLicenseAgreement,
+					{from: userCreator});
+
+                    await assert.expectRevert(hookOperatorContract.onTransfer(userOneAddress, userTwoAddress, TRANSFERABLE_TOKENS, {from: icoToken}));
+                });
+
+                it('should throw if "to" user is invalid', async () => {
+					let userContract = await userFactoryContract.getUserContract(userTwoAddress	);
+					userInstance = await IUserContract.at(userContract);
+
+					await userInstance.updateUserPolicy(
+						true, // TermsAndConditions,
+						true, // AML,
+						false, // Constitution,
+						true, // CommonLicenseAgreement,
+					{from: userCreator});
+
+                    await assert.expectRevert(hookOperatorContract.onTransfer(userOneAddress, userTwoAddress, TRANSFERABLE_TOKENS, {from: icoToken}));
+                });
 			});
 
 			describe('OnTaxTransfer', () => {
@@ -234,18 +326,36 @@ contract('HookOperator', function (accounts) {
 		describe('OnMint', () => {
 			let contracts;
 			let icoToken = accounts[9];
+			const KYC_VERIFIED_STATUS = 2;
 
 			beforeEach(async () => {
 				contracts = await ProjectInitializator.initWithAddress(owner);
 				hookOperatorContract = contracts.hookOperatorContract;
 				userFactoryContract = contracts.userFactoryContract;
 
-				hookOperatorContract.setICOToken(icoToken, {from: owner});
+				await userFactoryContract.createNewUser(userOne, KYC_VERIFIED_STATUS, {from: owner}); 
+
+				await hookOperatorContract.setICOToken(icoToken, {from: owner});
 			});
+
+			it('should throw if input mintable address is invalid', async () => {
+				let userContract = await userFactoryContract.getUserContract(userOne);
+                userInstance = await IUserContract.at(userContract);
+
+                await userInstance.updateUserPolicy(
+                    true, // TermsAndConditions,
+                    true, // AML,
+                    false, // Constitution,
+                    true, // CommonLicenseAgreement,
+				{from: owner});
+				
+                await expectThrow(hookOperatorContract.onMint(userOne, TRANSFERABLE_TOKENS, {from: icoToken}));
+            });
+				
 
 			it('should not process onMint if the method caller is not the ico token contract', async () => {
 				await assert.expectRevert(
-					hookOperatorContract.onMint(owner, TRANSFERABLE_TOKENS, {from: malicious})
+					hookOperatorContract.onMint(userOne, TRANSFERABLE_TOKENS, {from: malicious})
 				);
 			});
 		});

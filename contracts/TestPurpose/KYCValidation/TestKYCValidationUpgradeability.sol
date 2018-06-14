@@ -157,7 +157,7 @@ contract TestKYCValidationUpgradeability is ITestKYCValidationUpgradeability, Ow
 
     /**
         KYC Settings:
-        The owner set a user who will be responsible for the KYC Verication
+        The owner set a user who will be responsible for the KYC Verification
     */
     function setKYCUserOwner(address userOwner) public onlyOwner {
         require(userOwner != address(0));
@@ -190,7 +190,7 @@ contract TestKYCValidationUpgradeability is ITestKYCValidationUpgradeability, Ow
 
         // Monthly Validation
         uint256 monthlyAmount = userContract.getMonthlyTransactionVolumeSending();
-        verifyMontlyLimitKYC(tokensToSend, monthlyAmount, kycStatus);
+        verifyMonthlyLimitKYC(tokensToSend, monthlyAmount, kycStatus);
     }
 
     /**
@@ -216,7 +216,7 @@ contract TestKYCValidationUpgradeability is ITestKYCValidationUpgradeability, Ow
 
         // Monthly Validation
         uint256 monthlyAmount = userContract.getMonthlyTransactionVolumeReceiving();
-        verifyMontlyLimitKYC(tokensToSend, monthlyAmount, kycStatus);
+        verifyMonthlyLimitKYC(tokensToSend, monthlyAmount, kycStatus);
 
         // Max Balance Validation
         verifyMaxBalanceKYC(tokensToSend, userBalance, kycStatus);
@@ -226,72 +226,67 @@ contract TestKYCValidationUpgradeability is ITestKYCValidationUpgradeability, Ow
         KYC Verifications
     */
     function verifyDailyLimitKYC(uint256 tokensToSend, uint256 dailyAmount, uint256 kycStatus) public view {
-        uint256 rate = exchangeOracle.rate();
-        uint256 convertedTokens = tokensToSend.div(rate);
+        uint256 convertedTokens = exchangeOracle.calcWeiForTokensAmount(tokensToSend);
 
-        uint256 dailyAmountConverted = dailyAmount.div(rate);
+        uint256 dailyAmountConverted = exchangeOracle.calcWeiForTokensAmount(dailyAmount);
 
         if (kycStatus == 0) {
-            require(dailyAmountConverted < transactionsDailyLimitAnonymous);
-            require(dailyAmountConverted.add(convertedTokens) < transactionsDailyLimitAnonymous);
+            require(dailyAmountConverted <= transactionsDailyLimitAnonymous);
+            require(dailyAmountConverted.add(convertedTokens) <= transactionsDailyLimitAnonymous);
         }
 
         if (kycStatus == 1) {
-            require(dailyAmountConverted < transactionsDailyLimitSemiVerified);
-            require(dailyAmountConverted.add(convertedTokens) < transactionsDailyLimitSemiVerified);
+            require(dailyAmountConverted <= transactionsDailyLimitSemiVerified);
+            require(dailyAmountConverted.add(convertedTokens) <= transactionsDailyLimitSemiVerified);
         }
     }
 
     function verifyWeeklyLimitKYC(uint256 tokensToSend, uint256 weeklyAmount, uint256 kycStatus) public view {
-        uint256 rate = exchangeOracle.rate();
-        uint256 convertedTokens = tokensToSend.div(rate);
+        uint256 convertedTokens = exchangeOracle.calcWeiForTokensAmount(tokensToSend);
 
-        uint256 weeklyLimitAmountConverted = weeklyAmount.div(rate);
+        uint256 weeklyLimitAmountConverted = exchangeOracle.calcWeiForTokensAmount(weeklyAmount);
 
         if (kycStatus == 0) {
-            require(weeklyLimitAmountConverted < transactionWeeklyLimitAnonymous);
-            require(weeklyLimitAmountConverted.add(convertedTokens) < transactionWeeklyLimitAnonymous);
+            require(weeklyLimitAmountConverted <= transactionWeeklyLimitAnonymous);
+            require(weeklyLimitAmountConverted.add(convertedTokens) <= transactionWeeklyLimitAnonymous);
         }
 
         if (kycStatus == 1) {
-            require(weeklyLimitAmountConverted < transactionWeeklyLimitSemiVerified);
-            require(weeklyLimitAmountConverted.add(convertedTokens) < transactionWeeklyLimitSemiVerified);
+            require(weeklyLimitAmountConverted <= transactionWeeklyLimitSemiVerified);
+            require(weeklyLimitAmountConverted.add(convertedTokens) <= transactionWeeklyLimitSemiVerified);
         }
     }
 
-    function verifyMontlyLimitKYC(uint256 tokensToSend, uint256 monthlyAmount, uint256 kycStatus) public view {
-        uint256 rate = exchangeOracle.rate();
-        uint256 convertedTokens = tokensToSend.div(rate);
+    function verifyMonthlyLimitKYC(uint256 tokensToSend, uint256 monthlyAmount, uint256 kycStatus) public view {
+        uint256 convertedTokens = exchangeOracle.calcWeiForTokensAmount(tokensToSend);
 
-        uint256 monthlyLimitAmountConverted = monthlyAmount.div(rate);
+        uint256 monthlyLimitAmountConverted = exchangeOracle.calcWeiForTokensAmount(monthlyAmount);
 
         if (kycStatus == 0) {
-            require(monthlyLimitAmountConverted < transactionMonthlyLimitAnonymous);
-            require(monthlyLimitAmountConverted.add(convertedTokens) < transactionMonthlyLimitAnonymous);
+            require(monthlyLimitAmountConverted <= transactionMonthlyLimitAnonymous);
+            require(monthlyLimitAmountConverted.add(convertedTokens) <= transactionMonthlyLimitAnonymous);
         }
 
         if (kycStatus == 1) {
-            require(monthlyLimitAmountConverted < transactionMonthlyLimitSemiVerified);
-            require(monthlyLimitAmountConverted.add(convertedTokens) < transactionMonthlyLimitSemiVerified);
+            require(monthlyLimitAmountConverted <= transactionMonthlyLimitSemiVerified);
+            require(monthlyLimitAmountConverted.add(convertedTokens) <= transactionMonthlyLimitSemiVerified);
         }
     }
 
     function verifyMaxBalanceKYC(uint256 tokensToSend, uint256 userBalance, uint256 kycStatus) public view {
         require(tokensToSend > 0);
 
-        uint256 rate = exchangeOracle.rate();
-
         // Convert AIUR to ETH
-        uint256 convertedTokens = tokensToSend.div(rate);
-        uint256 convertedUserBalance = userBalance.div(rate);
+        uint256 convertedTokens = exchangeOracle.calcWeiForTokensAmount(tokensToSend);
+        uint256 convertedUserBalance = exchangeOracle.calcWeiForTokensAmount(userBalance);
 
         // Verify Max Balance
         if (kycStatus == 0) {
-            require(convertedUserBalance.add(convertedTokens) < maxBalanceAnonymousUser);
+            require(convertedUserBalance.add(convertedTokens) <= maxBalanceAnonymousUser);
         } 
 
         if (kycStatus == 1) {
-            require(convertedUserBalance.add(convertedTokens) < maxBalanceSemiVerifiedUser);
+            require(convertedUserBalance.add(convertedTokens) <= maxBalanceSemiVerifiedUser);
         }
     }
 
@@ -300,14 +295,14 @@ contract TestKYCValidationUpgradeability is ITestKYCValidationUpgradeability, Ow
     */
 
     function setUserBlacklistedStatus(address _userAddress, bool _shouldBeBlacklisted) public onlyKYCAdmin {
-        address userContractAddress = userFactory.getUser(_userAddress);
+        address userContractAddress = userFactory.getUserContract(_userAddress);
         IUserContract user = IUserContract(userContractAddress);
 
         user.setUserBlacklistedStatus(_shouldBeBlacklisted);
     }
 
     function banUser(address _userAddress) public onlyKYCAdmin {        
-        address userContractAddress = userFactory.getUser(_userAddress);
+        address userContractAddress = userFactory.getUserContract(_userAddress);
         IUserContract user = IUserContract(userContractAddress);
 
         user.banUser();

@@ -12,9 +12,6 @@ contract LinkedListContract is ILinkedListContract, NotInitedOwnable {
     using LinkedList for LinkedList.Data;
     LinkedList.Data linkedListData;
 
-    event LogUserAdd(address userAddress);
-    event LogUserMove(address userAddress);
-
     modifier onlyUserManager() {
         require(userManager == msg.sender);
         
@@ -27,61 +24,61 @@ contract LinkedListContract is ILinkedListContract, NotInitedOwnable {
         _;
     }
 
-    function setUserManager(address userManagerAddress) public onlyOwner {
+    function setUserManager(address userManagerAddress) external onlyOwner {
         require(userManagerAddress != address(0));
 
         userManager = userManagerAddress;
     }
 
-    function getUserManager() public view returns(address) {
+    function getUserManager() external view returns(address) {
         return userManager;
     }
 
-    function setUserFactory(address userFactoryAddress) public onlyOwner {
+    function setUserFactory(address userFactoryAddress) external onlyOwner {
         require(userFactoryAddress != address(0));
 
         userFactory = userFactoryAddress;
     }
 
-    function getUserFactory() public view returns(address) {
+    function getUserFactory() external view returns(address) {
         return userFactory;
     }
 
-    function isSingleNodeList() public view returns(bool) {
+    function isSingleNodeList() external view returns(bool) {
         return linkedListData.isSingleNodeList();
     }
 
-    function add(address userAddress) public onlyUserFactory {
+    function add(address userAddress) external onlyUserFactory {
         linkedListData.add(userAddress);
 
         emit LogUserAdd(userAddress);
     }
 
-    function moveToEnd(address userAddress) public onlyUserManager {
+    function moveToEnd(address userAddress) external onlyUserManager {
         linkedListData.moveToEnd(userAddress);
 
         emit LogUserMove(userAddress);
     }
 
-    function peek(address userAddress) public view returns(address) {
+    function peek(address userAddress) external view returns(address) {
         require(userAddress != address(0));
         
         return linkedListData.nodes[userAddress].nodeValue;
     }
 
-    function getHead() public view returns(address) {
+    function getHead() external view returns(address) {
         return linkedListData.head;
     }
 
-    function getTail() public view returns(address) {
+    function getTail() external view returns(address) {
         return linkedListData.tail; 
     }
 
-    function getLinkedListLength() public view returns (uint256) {
+    function getLinkedListLength() external view returns (uint256) {
         return linkedListData.linkedListLength;
     }
 
-    function getNodeData(address nodeAddress) public view returns(address data, address previousNode, address nextNode) {
+    function getNodeData(address nodeAddress) external view returns(address data, address previousNode, address nextNode) {
         require(nodeAddress != address(0));
         
         return (linkedListData.nodes[nodeAddress].nodeValue, linkedListData.nodes[nodeAddress].previousNode, linkedListData.nodes[nodeAddress].nextNode);

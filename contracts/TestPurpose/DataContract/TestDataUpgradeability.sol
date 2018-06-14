@@ -14,28 +14,28 @@ contract TestDataUpgradeability is ITestDataUpgradeability, OwnableUpgradeableIm
     using SafeMath for uint256;
     uint256 public percentage_delimiter;
 
-    function setPercentageDelimiter(uint newPercentageDelimiter) public {
+    function setPercentageDelimiter(uint newPercentageDelimiter) external {
         percentage_delimiter = newPercentageDelimiter;
     }
 
     // The logic is changed for testing upgradeability purpose
-    function getTaxPercentage() public view returns(uint256 _taxPercentage) {
+    function getTaxPercentage() external view returns(uint256 _taxPercentage) {
         return taxPercentage.div(percentage_delimiter);
     }
 
-    function setTaxPercentage(uint256 _taxPercentage) public {
+    function setTaxPercentage(uint256 _taxPercentage) external {
         taxPercentage = _taxPercentage;
 
-        emit LogSettedTaxPercentage(taxPercentage);
+        emit LogTaxPercentageSet(taxPercentage);
     }
 
-    function getTaxationPeriodInSeconds() public view returns(uint256 _taxationPeriodInSeconds) {
+    function getTaxationPeriodInSeconds() external view returns(uint256 _taxationPeriodInSeconds) {
         return taxationPeriodInSeconds;
     }
 
-    function setTaxationPeriodInSeconds(uint256 _taxationPeriodInSeconds) public onlyUserManager {
+    function setTaxationPeriodInSeconds(uint256 _taxationPeriodInSeconds) external onlyUserManager {
         taxationPeriodInSeconds = _taxationPeriodInSeconds;
         
-        emit LogSeetedTaxationPeriodInSecond(taxationPeriodInSeconds);
+        emit LogTaxationPeriodInSecondsSet(taxationPeriodInSeconds);
     }    
 }

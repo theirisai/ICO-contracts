@@ -11,32 +11,33 @@ import "./../../Upgradeability/OwnableUpgradeableImplementation/OwnableUpgradeab
 
 contract UserFactory is IUserFactory, OwnableUpgradeableImplementation {
     address public implContract;
-    address public userManagerServicesAddress;
+    address public userManagerAddress;
     address public kycVerificationAddress;
     address public userCreator;
     address public hookOperatorAddress;
 
     IDataContract public dataContract;
 
-    mapping (address => IUserContract) public users;
+    address[] public users;
+    mapping (address => IUserContract) public usersContracts;
 
     /**
         Modifiers
     */
-    modifier onlyNotInitiedUser(address _userAddress) {
-        require(users[_userAddress] == address(0));
+    modifier onlyNotInitedUser(address _userAddress) {
+        require(usersContracts[_userAddress] == address(0));
 
         _;
     }
 
     modifier onlyUserManager() {
-        require(userManagerServicesAddress == msg.sender);
+        require(userManagerAddress == msg.sender);
 
         _;
     }
 
     modifier onlyExistingUser(address _userAddress) {
-        require(users[_userAddress] != address(0));
+        require(usersContracts[_userAddress] != address(0));
 
         _;
     }
@@ -50,85 +51,105 @@ contract UserFactory is IUserFactory, OwnableUpgradeableImplementation {
     /**
         User Functions
     */
-    function createNewUser(address _userAddress, uint256 KYCStatus) public onlyUserCreator onlyNotInitiedUser(_userAddress) returns(bool success) {
-        require(_userAddress != address(0));
+    function createExchangeUser(address _exchangeUserAddress, uint256 _KYCStatus) external onlyUserCreator returns(bool _success) {
+        IUserContract userContract = createUserContract(_exchangeUserAddress);
 
-        UserContractProxy proxy = new UserContractProxy(this);
-        IUserContract userContract = IUserContract(proxy);
+        userContract.initExchangeUser(_KYCStatus);
 
-        // Default values when creating new user
-        userContract.initUser(0, KYCStatus, 0);
-        
-        users[_userAddress] = userContract;
-
-        dataContract.add(_userAddress);
-
-        emit LogCreateUserContract(0, KYCStatus, 0);
+        emit LogExchangeUserCreation(_exchangeUserAddress, _KYCStatus);
 
         return true; 
     }
 
-    function isUserExisting(address _userAddress) public view returns(bool _isExisting) {
-        require(_userAddress != address(0));
+    function createNewUser(address _userAddress, uint256 _KYCStatus) external onlyUserCreator returns(bool _success) {
+        IUserContract userContract = createUserContract(_userAddress);
 
-        return users[_userAddress] != address(0);
+        userContract.initKYCUser(_KYCStatus);
+
+        emit LogUserContractCreation(_userAddress, _KYCStatus);
+
+        return true; 
     }
 
-    function getUser(address _userAddress) public view onlyExistingUser(_userAddress) returns(IUserContract _userContract) {
+    function createUserContract(address _newUserAddress) internal onlyNotInitedUser(_newUserAddress) returns(IUserContract) {
+        require(_newUserAddress != address(0));
+
+        UserContractProxy proxy = new UserContractProxy(this);
+        IUserContract userContract = IUserContract(proxy);
+
+        usersContracts[_newUserAddress] = userContract;
+        
+        users.push(_newUserAddress);
+        dataContract.add(_newUserAddress);
+
+        return userContract;
+    }
+
+    function isUserExisting(address _userAddress) external view returns(bool _isExisting) {
         require(_userAddress != address(0));
 
-        return users[_userAddress];
+        return usersContracts[_userAddress] != address(0);
+    }
+
+    function getUserById(uint _userId) external view returns(address _userAddress) {
+        return users[_userId];
+    }
+
+    function getUserContract(address _userAddress) external view onlyExistingUser(_userAddress) returns(IUserContract _userContract) {
+        require(_userAddress != address(0));
+
+        return usersContracts[_userAddress];
     }
 
     /**
         User Creator
     */
-    function setUserCreator(address newUserCreator) public onlyOwner {
-        require(newUserCreator != address(0));
+    function setUserCreator(address _newUserCreator) external onlyOwner {
+        require(_newUserCreator != address(0));
 
-        userCreator = newUserCreator;
+        userCreator = _newUserCreator;
     }
 
-    function getUserCreator() public view returns(address) {
+    function getUserCreator() external view returns(address) {
         return userCreator;
     }
 
     /**
         Hook Operator    
     */
-    function setHookOperatorAddress(address hookOperatorContractAddress) public onlyOwner {
-        require(hookOperatorContractAddress != address(0));
+    function setHookOperatorAddress(address _hookOperatorContractAddress) external onlyOwner {
+        require(_hookOperatorContractAddress != address(0));
 
-        hookOperatorAddress = hookOperatorContractAddress;
+        hookOperatorAddress = _hookOperatorContractAddress;
     }
 
-    function getHookOperatorAddress() public view returns(address HookOperatorContractAddress) {
+    function getHookOperatorAddress() external view returns(address _hookOperatorContractAddress) {
         return hookOperatorAddress;
     }
 
     /**
         User Managers
     */
-    function setUserManagerAddress(address _hookOperatorServicesAddress) public onlyOwner {
-        require(_hookOperatorServicesAddress != address(0));
+    function setUserManagerAddress(address _userManagerContractAddress) external onlyOwner {
+        require(_userManagerContractAddress != address(0));
 
-        userManagerServicesAddress = _hookOperatorServicesAddress;
+        userManagerAddress = _userManagerContractAddress;
     }
 
-    function getUserManagerContractAddres() public view returns(address userManagerContractAddress) {
-        return userManagerServicesAddress;
+    function getUserManagerContractAddress() external view returns(address _userManagerContractAddress) {
+        return userManagerAddress;
     }
 
     /**
-        User Factory Upgradability
+        User Factory Upgradeability
     */
-    function setImplAddress(address _implAddress) public onlyOwner {
+    function setImplAddress(address _implAddress) external onlyOwner {
         require(_implAddress != address(0));
 
         implContract = _implAddress;
     }
 
-    function getImplAddress() public view returns(address _implAddress) {
+    function getImplAddress() external view returns(address _implAddress) {
         return implContract;
     }
 
@@ -136,26 +157,26 @@ contract UserFactory is IUserFactory, OwnableUpgradeableImplementation {
         KYC Verification - Get & Set
     */
 
-    function setKYCVerificationInstance(address kycVerification) public onlyOwner {
-        require(kycVerification != address(0));
+    function setKYCVerificationInstance(address _kycVerification) external onlyOwner {
+        require(_kycVerification != address(0));
 
-        kycVerificationAddress = kycVerification;
+        kycVerificationAddress = _kycVerification;
     }
 
-    function getKYCVerificationInstance() public view returns(address) {
+    function getKYCVerificationInstance() external view returns(address) {
         return kycVerificationAddress;
     }
 
     /**
         Data Contract
     */
-    function setDataContract(address dataContractAddress) public onlyOwner {
-        require(dataContractAddress != address(0));
+    function setDataContract(address _dataContractAddress) external onlyOwner {
+        require(_dataContractAddress != address(0));
         
-        dataContract = IDataContract(dataContractAddress);
+        dataContract = IDataContract(_dataContractAddress);
     }
 
-    function getDataContract() public view returns(IDataContract dataContractInstance) {
+    function getDataContract() external view returns(IDataContract _dataContractInstance) {
         return dataContract;
     }
 }

@@ -3,10 +3,19 @@ pragma solidity ^0.4.21;
 import "./../Upgradeability/OwnableUpgradeableImplementation/IOwnableUpgradeableImplementation.sol";
 
 contract IHookOperator is IOwnableUpgradeableImplementation {
+
+    event LogSetBalancePercentageLimit(uint256 limit);
+    event LogSetOverBalanceLimitHolder(address holderAddress, bool isHolder);
+    event LogSetUserManager(address userManagerAddress);
+    event LogSetICOToken(address icoTokenAddress);
+
     event LogOnTransfer(address from, address to, uint tokens);
-    event LogOnTaxTransfer(address taxableUser, uint tokensAmount);
     event LogOnMint(address to, uint256 amount);
     event LogOnBurn(uint amount);
+    event LogOnTaxTransfer(address indexed taxableUser, uint tokensAmount);
+
+    event LogSetKYCVerificationContract(address _kycVerificationContractAddress);
+    event LogUpdateUserRatio(uint256 generationRatio, address indexed userContractAddress);
 
     /**
         Setters
@@ -38,10 +47,10 @@ contract IHookOperator is IOwnableUpgradeableImplementation {
     */
     function kycVerification(address from, address to, uint256 tokensAmount) public;
 
-    function setKYCVerficationContract(address _kycVerificationContractAddress) public;
-    
+    function setKYCVerificationContract(address _kycVerificationContractAddress) public;
 
     function getKYCVerificationContractAddress() public view returns(address _kycVerificationContractAddress);
+    
     /**
         Helper functions
     */

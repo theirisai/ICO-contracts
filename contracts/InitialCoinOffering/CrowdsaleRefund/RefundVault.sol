@@ -7,7 +7,7 @@ contract RefundVault is Ownable {
     using SafeMath for uint256;
 
     /* 
-        To cover the costs for paying investor related functions by ourselfs as: 
+        To cover the costs for paying investor related functions by ourself as: 
             "add investor in the whitelist" and etc.
 
         We are getting 3% of the investor's deposit only if the soft cap
@@ -33,13 +33,13 @@ contract RefundVault is Ownable {
         state = State.Active;
     }
 
-    function deposit(address investor) onlyOwner public payable {
+    function deposit(address investor) onlyOwner external payable {
         require(state == State.Active);
 
         deposited[investor] = deposited[investor].add(msg.value);
     }
 
-    function close() onlyOwner public {
+    function close() onlyOwner external {
         require(state == State.Active);
         
         state = State.Closed;
@@ -47,14 +47,14 @@ contract RefundVault is Ownable {
         wallet.transfer(address(this).balance);
     }
 
-    function enableRefunds() onlyOwner public {
+    function enableRefunds() external onlyOwner {
         require(state == State.Active);
 
         state = State.Refunding;
         emit RefundsEnabled();
     }
 
-    function refund(address investor) public {
+    function refund(address investor) external {
         require(state == State.Refunding);
 
         uint256 depositedValue = deposited[investor];
@@ -62,8 +62,8 @@ contract RefundVault is Ownable {
         
         deposited[investor] = 0;
 
-        investor.transfer(depositedValue.sub(deductedValue));
         wallet.transfer(deductedValue);
+        investor.transfer(depositedValue.sub(deductedValue));
         
         totalDeductedValue = totalDeductedValue.add(deductedValue);
 

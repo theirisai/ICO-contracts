@@ -21,7 +21,7 @@ contract RefundableCrowdsale is FinalizableCrowdsale {
         vault.deposit.value(msg.value)(msg.sender);
     }
 
-    function claimRefund() public {
+    function claimRefund() external {
         require(isFinalized);
         require(!goalReached());
 

@@ -6,14 +6,14 @@ import "./../User/UserFactory/IUserFactory.sol";
 
 contract IDataContract is IOwnableUpgradeableImplementation, ILinkedListContract {
 
-    event LogSettedTaxPercentage(uint256 _taxPercentage);
-    event LogSeetedTaxationPeriodInSecond(uint256 _taxationPeriodInSeconds);
+    event LogTaxPercentageSet(uint256 _taxPercentage);
+    event LogTaxationPeriodInSecondsSet(uint256 _taxationPeriodInSeconds);
 
-    function getTaxPercentage() public view returns(uint256 _taxPercentage);
+    function getTaxPercentage() external view returns(uint256 _taxPercentage);
 
-    function setTaxPercentage(uint256 _taxPercentage) public;
+    function setTaxPercentage(uint256 _taxPercentage) external;
 
-    function getTaxationPeriodInSeconds() public view returns(uint256 _taxationPeriodInSeconds);
+    function getTaxationPeriodInSeconds() external view returns(uint256 _taxationPeriodInSeconds);
 
-    function setTaxationPeriodInSeconds(uint256 _taxationPeriodInSeconds) public;
+    function setTaxationPeriodInSeconds(uint256 _taxationPeriodInSeconds) external;
 }

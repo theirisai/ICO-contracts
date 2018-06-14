@@ -14,13 +14,10 @@ contract('UserManager', function (accounts) {
     const nonOwner = accounts[9];
 
     const userOneAddress = accounts[1];
-    const userTwoAddress = accounts[2];
-	const userThreeAddress = accounts[3];
-	const userFourAddress = accounts[4];
-	const userFiveAddress = accounts[5];
 	
-	const USER_MANAGER = accounts[7];
-	const HOOK_OPERATOR = accounts[8];
+	const USER_MANAGER = accounts[2];
+	const HOOK_OPERATOR = accounts[3];
+	const CROWDSALE = accounts[4];
 
 	let hookOperatorContract;
 	let userManagerContract;
@@ -30,7 +27,7 @@ contract('UserManager', function (accounts) {
 	describe('Testing Setters', () => {
 		let contracts;
 
-		before(async () => {
+		beforeEach(async () => {
 			contracts = await ProjectInitializator.initWithAddress(owner);
 
 			hookOperatorContract = contracts.hookOperatorContract;
@@ -112,12 +109,42 @@ contract('UserManager', function (accounts) {
 			});
 		});
 
+		describe('Testing Crowdsale setter', () => {
+			it('should set crowdsale contract correctly', async () => {
+				await userManagerContract.setCrowdsaleContract(CROWDSALE);
+				
+				let crowdsaleContract = await userManagerContract.getCrowdsaleContract();
+		
+				assert.equal(crowdsaleContract, CROWDSALE, "Crowdsale is not set correctly");
+			});
+
+			it('should throw if non-owner try to set crowdsale contract', async () => {
+				await expectThrow(
+					userManagerContract.setCrowdsaleContract(CROWDSALE, {from: nonOwner})
+				);
+			});
+
+			it('should throw if input crowdsale address is invalid', async () => {
+				await expectThrow(
+					userManagerContract.setCrowdsaleContract("0x0", {from: owner})
+				);
+			});
+
+			it('should throw if owner try to set crowdsale contract more than once', async () => {
+				await userManagerContract.setCrowdsaleContract(CROWDSALE, {from: owner});
+
+				await expectThrow(
+					userManagerContract.setCrowdsaleContract(CROWDSALE, {from: nonOwner})
+				);
+			});
+		});
+
 		describe('Testing user manager functions', () => {
 			const userCreator = accounts[3];
 			const userManager = accounts[4];
 
         	const USER_KYC_STATUS = {
-            	ANONIMNOUS: 0,
+            	ANONYMOUS: 0,
             	SEMI_VERIFIED: 1,
             	VERIFIED: 2,
             	UNDEFINED: 3
@@ -153,7 +180,7 @@ contract('UserManager', function (accounts) {
 			it("isBlacklisted should return correct value", async () => {
 				let isUserBlacklisted = await userManagerContract.isBlacklisted(userOneAddress);
 
-				assert.equal(isUserBlacklisted, false, `isUserBlacklisted should be falseb but returned ${isUserBlacklisted}`);
+				assert.equal(isUserBlacklisted, false, `isUserBlacklisted should be false but returned ${isUserBlacklisted}`);
 			});
 
 			it("isBlacklisted should throw if invalid address is used", async () => {
@@ -174,7 +201,7 @@ contract('UserManager', function (accounts) {
 				let hookOperatorContractAddress = accounts[7];
 				await userManagerContract.setHookOperatorContract(hookOperatorContractAddress, {from: owner});
 
-				let userAddress = await userFactoryContract.getUser(userOneAddress);
+				let userAddress = await userManagerContract.getUserContractAddress(userOneAddress);
 				let userInstance = await IUserContract.at(userAddress);
 				
 				let userData = await userInstance.getUserData();
@@ -194,7 +221,7 @@ contract('UserManager', function (accounts) {
 				let hookOperatorContractAddress = accounts[7];
 				await userManagerContract.setHookOperatorContract(hookOperatorContractAddress, {from: owner});
 
-				let userAddress = await userFactoryContract.getUser(userOneAddress);
+				let userAddress = await userManagerContract.getUserContractAddress(userOneAddress);
 				let userInstance = await IUserContract.at(userAddress);
 				
 				let userData = await userInstance.getUserData();
@@ -210,7 +237,7 @@ contract('UserManager', function (accounts) {
 				let hookOperatorContractAddress = accounts[7];
 				await userManagerContract.setHookOperatorContract(hookOperatorContractAddress, {from: owner});
 
-				let userAddress = await userFactoryContract.getUser(userOneAddress);
+				let userAddress = await userManagerContract.getUserContractAddress(userOneAddress);
 				let userInstance = await IUserContract.at(userAddress);
 				
 				let userData = await userInstance.getUserData();
@@ -226,10 +253,39 @@ contract('UserManager', function (accounts) {
 				assert.isAbove(updatedLastTransactionTime, userLastTransactionTime, `Updated last transaction time should be ${updatedLastTransactionTime} but returned ${userLastTransactionTime}`);
 			});
 
-			it("should return correct policy", async () => {
-				let isUserPolicyCorrect = await userManagerContract.isUserPolicyCorrect(userOneAddress);
+			it("should return valid user", async () => {
+				let isValidUser = await userManagerContract.isValidUser(userOneAddress);
 
-				assert.equal(isUserPolicyCorrect, true, `isUserPolicyCorrect should return true but returned ${isUserPolicyCorrect}`);
+				assert.equal(isValidUser, true, `isValidUser should return true but returned ${isValidUser}`);
+			});
+
+
+			it('should mark user as founder', async () => {
+				await userManagerContract.setCrowdsaleContract(CROWDSALE, {from: owner});
+
+				let userAddress = await userManagerContract.getUserContractAddress(userOneAddress);
+				let userInstance = await IUserContract.at(userAddress);
+
+				let isUserFounderBeforeMark = await userInstance.isFounderUser();
+
+				await userManagerContract.markUserAsFounder(userOneAddress, {from: CROWDSALE});
+
+				let isUserFounderAfterMark = await userInstance.isFounderUser();
+
+				assert.isFalse(isUserFounderBeforeMark, "User is marked as founder in advance");
+				assert.isTrue(isUserFounderAfterMark, "User is not marked as founder successfully");
+			});
+
+			it('should throw if non-crowdsale try to mark user as founder', async () => {
+				await expectThrow(
+					userManagerContract.markUserAsFounder(userOneAddress, {from: nonOwner})
+				);
+			});
+
+			it('should throw if user for marking input address is invalid', async () => {
+				await expectThrow(
+					userManagerContract.markUserAsFounder("0x0", {from: CROWDSALE})
+				);
 			});
 		});
 	});

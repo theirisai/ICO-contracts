@@ -16,7 +16,6 @@ contract HookOperator is IHookOperator, OwnableUpgradeableImplementation {
     IKYCVerification public kycVerificationContract;
     ICOTokenExtended public icoToken;
     
-    address public offChainService;
     uint256 public balancePercentageLimit;
 
     mapping(address => bool) public overBalanceLimitHolders;
@@ -27,12 +26,6 @@ contract HookOperator is IHookOperator, OwnableUpgradeableImplementation {
     modifier onlyICOToken() {
         require(msg.sender == address(icoToken));
         
-        _;
-    }
-
-    modifier onlyOffChainService() {
-        require(msg.sender == offChainService);
-
         _;
     }
 
@@ -64,6 +57,8 @@ contract HookOperator is IHookOperator, OwnableUpgradeableImplementation {
         require(limit < 100);
 
         balancePercentageLimit = limit;
+
+        emit LogSetBalancePercentageLimit(limit);
     }
 
     function getBalancePercentageLimit() public view returns(uint256) {
@@ -75,14 +70,17 @@ contract HookOperator is IHookOperator, OwnableUpgradeableImplementation {
     */
     function setOverBalanceLimitHolder(address holderAddress, bool isHolder) public onlyOwner nonZeroAddress(holderAddress) {
         overBalanceLimitHolders[holderAddress] = isHolder;
+
+        emit LogSetOverBalanceLimitHolder(holderAddress, isHolder);
     }
 
     /**
         User Manager - Get & Set
     */
     function setUserManager(address userManagerAddress) public onlyOwner nonZeroAddress(userManagerAddress) {
-
         userManager = IUserManager(userManagerAddress);
+
+        emit LogSetUserManager(userManagerAddress);
     }
 
     function getUserManager() public view returns(address userManagerAddress) {
@@ -96,6 +94,8 @@ contract HookOperator is IHookOperator, OwnableUpgradeableImplementation {
         require(icoTokenAddress != address(0));
 
         icoToken = ICOTokenExtended(icoTokenAddress);
+
+        emit LogSetICOToken(icoTokenAddress);
     }
 
     function getICOToken() public view returns(address icoTokenAddress) {
@@ -106,8 +106,8 @@ contract HookOperator is IHookOperator, OwnableUpgradeableImplementation {
         Main Functions
     */
     function onTransfer(address from, address to, uint tokensAmount) public onlyICOToken nonZeroAddress(from) nonZeroAddress(to) isNotBlocked(from) isNotBlocked(to) {
-        require(userManager.isUserPolicyCorrect(to));
-        require(userManager.isUserPolicyCorrect(from));
+        require(userManager.isValidUser(to));
+        require(userManager.isValidUser(from));
         require(isInBalanceLimit(to, tokensAmount));
 
         kycVerification(from, to, tokensAmount);
@@ -118,7 +118,7 @@ contract HookOperator is IHookOperator, OwnableUpgradeableImplementation {
     }
 
     function onMint(address to, uint256 tokensAmount) public onlyICOToken nonZeroAddress(to) isNotBlocked(to) {
-        require(userManager.isUserPolicyCorrect(to));
+        require(userManager.isValidUser(to));
 
         uint256 kycStatusTo = userManager.isUserKYCVerified(to);
         
@@ -171,7 +171,7 @@ contract HookOperator is IHookOperator, OwnableUpgradeableImplementation {
         userSender.increaseWeeklyTransactionVolumeSending(tokensAmount);
         userReceiver.increaseWeeklyTransactionVolumeReceiving(tokensAmount);
 
-        // Update montly volume
+        // Update monthly volume
         userSender.increaseMonthlyTransactionVolumeSending(tokensAmount);
         userReceiver.increaseMonthlyTransactionVolumeReceiving(tokensAmount);
     }
@@ -179,10 +179,12 @@ contract HookOperator is IHookOperator, OwnableUpgradeableImplementation {
     /**
         KYC Verification Contract - Get & Set
     */
-    function setKYCVerficationContract(address _kycVerificationContractAddress) public onlyOwner nonZeroAddress(_kycVerificationContractAddress) {
+    function setKYCVerificationContract(address _kycVerificationContractAddress) public onlyOwner nonZeroAddress(_kycVerificationContractAddress) {
         require(_kycVerificationContractAddress != address(0));
 
         kycVerificationContract = IKYCVerification(_kycVerificationContractAddress);
+
+        emit LogSetKYCVerificationContract(_kycVerificationContractAddress);
     }
 
     function getKYCVerificationContractAddress() public view returns(address _kycVerificationContractAddress) {
@@ -196,6 +198,8 @@ contract HookOperator is IHookOperator, OwnableUpgradeableImplementation {
         require(userContractAddress != address(0));
         
         userManager.updateGenerationRatio(generationRatio, userContractAddress);
+
+        emit LogUpdateUserRatio(generationRatio, userContractAddress);
     }
 
     function isOverBalanceLimitHolder(address holderAddress) public view nonZeroAddress(holderAddress) returns(bool){
