@@ -72,6 +72,7 @@ run = async function () {
     let overDepositTokensRecipient; // This is set after MultiSig deployment on line 104
     // Exchange Oracle
     const initialOracleRate = 100000;
+    const realWorldRate = 100;
 
     // Crowdsale and Vesting
     const crowdsaleDuration = 49 * 24 * 60 * 60; // 7 weeks
@@ -85,15 +86,15 @@ run = async function () {
     const balancePercentageLimit = 2;
 
     // KYC initial limits (in ETH)
-    const transactionsDailyLimitAnonymous = ((15 * token) / initialOracleRate).toString(); // 15 tokens AIUR -> ETH
-    const transactionWeeklyLimitAnonymous = ((60 * token) / initialOracleRate).toString(); // 60 tokens AIUR -> ETH
-    const transactionMonthlyLimitAnonymous = ((120 * token) / initialOracleRate).toString(); // 120 tokens AIUR -> ETH
-    const maxBalanceAnonymousUser = ((60 * token) / initialOracleRate).toString(); // 60 tokens AIUR -> ETH
+    const transactionsDailyLimitAnonymous = ((15 * token) / realWorldRate).toString(); // 15 tokens AIUR -> ETH
+    const transactionWeeklyLimitAnonymous = ((60 * token) / realWorldRate).toString(); // 60 tokens AIUR -> ETH
+    const transactionMonthlyLimitAnonymous = ((120 * token) / realWorldRate).toString(); // 120 tokens AIUR -> ETH
+    const maxBalanceAnonymousUser = ((60 * token) / realWorldRate).toString(); // 60 tokens AIUR -> ETH
 
-    const transactionsDailyLimitSemiVerified = ((70 * token) / initialOracleRate).toString(); // 70 tokens AIUR -> ETH
-    const transactionWeeklyLimitSemiVerified = ((280 * token) / initialOracleRate).toString(); // 280 tokens AIUR -> ETH
-    const transactionMonthlyLimitSemiVerified = ((560 * token) / initialOracleRate).toString(); // 560 tokens AIUR -> ETH
-    const maxBalanceSemiVerifiedUser = ((280 * token) / initialOracleRate).toString(); // 280 tokens AIUR -> ETH
+    const transactionsDailyLimitSemiVerified = ((70 * token) / realWorldRate).toString(); // 70 tokens AIUR -> ETH
+    const transactionWeeklyLimitSemiVerified = ((280 * token) / realWorldRate).toString(); // 280 tokens AIUR -> ETH
+    const transactionMonthlyLimitSemiVerified = ((560 * token) / realWorldRate).toString(); // 560 tokens AIUR -> ETH
+    const maxBalanceSemiVerifiedUser = ((280 * token) / realWorldRate).toString(); // 280 tokens AIUR -> ETH
 
     // Deploy Owner MultiSig wallet
     let ownerMultiSigDeployTxn = await ethers.Contract.getDeployTransaction(multiSigJson.bytecode, multiSigJson.abi, allAccounts, requiredConfirmations);

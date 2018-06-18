@@ -116,7 +116,7 @@ contract ICOTokenExtended is ICOToken {
         require(!hookOperator.isOverBalanceLimitHolder(from));
 
         uint256 oracleRate = aiurExchangeOracle.rate();
-        require(rate >= oracleRate.div(MIN_REFUND_RATE_DELIMITER));
+        require(rate <= oracleRate.add(oracleRate.div(MIN_REFUND_RATE_DELIMITER)));
 
         uint256 fromBalance = balanceOf(from);
         

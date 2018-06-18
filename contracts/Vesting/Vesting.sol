@@ -116,7 +116,7 @@ contract Vesting is Ownable {
     function refundOverDeposits(address investor, uint rate) external onlyOwner nonZeroAddress(investor) {
         uint256 oracleRate = tokenInstance.aiurExchangeOracle().rate();
 
-        require(rate > oracleRate.div(tokenInstance.MIN_REFUND_RATE_DELIMITER())); // rate has to be minimum 50% of the oracle rate
+        require(rate <= oracleRate.add(oracleRate.div(tokenInstance.MIN_REFUND_RATE_DELIMITER()))); // Passed rate has to be bigger maximum 50% of the oracle rate
 
         uint256 investorBalance = tokenInstance.balanceOf(investor);
         
@@ -126,11 +126,11 @@ contract Vesting is Ownable {
         require(investorBalance > maxTokensBalance);
 
         uint256 overDepositedTokens = investorBalance.sub(maxTokensBalance);
-        uint256 ethersToRefund = tokenInstance.aiurExchangeOracle().convertTokensAmountInWeiAtRate(overDepositedTokens, rate);
+        uint256 weiToRefund = tokenInstance.aiurExchangeOracle().convertTokensAmountInWeiAtRate(overDepositedTokens, rate);
 
-        tokenInstance.transferOverBalanceFunds.value(ethersToRefund)(investor, overDepositTokensRecipient, rate);
+        tokenInstance.transferOverBalanceFunds.value(weiToRefund)(investor, overDepositTokensRecipient, rate);
 
-        emit LogOverDepositsRefund(investor, overDepositedTokens, ethersToRefund, rate, overDepositTokensRecipient);
+        emit LogOverDepositsRefund(investor, overDepositedTokens, weiToRefund, rate, overDepositTokensRecipient);
     }
 
     function() external payable { }

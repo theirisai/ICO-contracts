@@ -548,9 +548,10 @@ contract('ICOTokenExtended', function (accounts) {
 				);
 			});
 
-			it('should throw if input rate is less than 1/2 of the oracle rate', async () => {
+			it('should throw if input rate is bigger than 1/2 of the oracle rate', async () => {
+				let invalidRate = RATE * 2
 				await expectThrow(
-					icoTokenContract.transferOverBalanceFunds(USER_ONE, "0x0", RATE, {value: REFUNDED_ETHERS, from: OWNER})
+					icoTokenContract.transferOverBalanceFunds(USER_ONE, OVER_BALANCE_HOLDER, invalidRate, {value: REFUNDED_ETHERS, from: OWNER})
 				);
 			});
 

@@ -355,7 +355,7 @@ contract('Vesting', function (accounts) {
 
     
 
-    describe('Refund Over Deposits ', () => {
+    describe('Refund Over Deposits', () => {
 
         let tokenInstance;
 
@@ -415,7 +415,7 @@ contract('Vesting', function (accounts) {
             await vestingInstance.sendTransaction({from: OWNER, value: INITIAL_TOKENS_AMOUNT});
         });
 
-        it('should refund ethers to an investitor if his tokens balance is over the limit', async () => {
+        it('should refund ethers to an investor if his tokens balance is over the limit', async () => {
             let userETHBalanceBeforeRefund = await web3.eth.getBalance(USER_ONE);
 
             await vestingInstance.refundOverDeposits(USER_ONE, REGULAR_RATE, {from: OWNER});
@@ -436,7 +436,7 @@ contract('Vesting', function (accounts) {
             );
         });
 
-        it('should throw on invalid input investitor address', async () => {
+        it('should throw on invalid input investor address', async () => {
             await expectThrow(
                 vestingInstance.refundOverDeposits("0x0", REGULAR_RATE, {from: OWNER})
             );
@@ -448,8 +448,8 @@ contract('Vesting', function (accounts) {
             );
         });
 
-        it('should throw if input rate is less than 1/2 of the oracle rate', async () => {
-            let invalidRate = REGULAR_RATE / 3;
+        it('should throw if input rate is bigger than 1/2 of the oracle rate', async () => {
+            let invalidRate = REGULAR_RATE * 2;
 
             await expectThrow(
                 vestingInstance.refundOverDeposits(USER_ONE, invalidRate, {from: OWNER})
