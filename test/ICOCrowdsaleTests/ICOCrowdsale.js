@@ -695,12 +695,26 @@ contract('ICOCrowdsale', function (accounts) {
 			assert.equal(afterOwner, OWNER, "The owner was not set to the crowdsale OWNER");
 		});
 
-		it("should not unpause the token", async function () {
+		it("should pause the token", async function () {
 			await crowdsaleInstance.finalize({from: OWNER});
 			
 			let paused = await tokenInstance.paused.call();
 			
-			assert.isTrue(paused, "The token contract was unpaused");
+			assert.isTrue(paused, "The token contract is unpaused");
+		});
+
+		it("should mint tokens when it is paused", async function () {
+			const MINT_TOKENS_AMOUNT = "10000000000000000000"; // 10 tokens
+			await crowdsaleInstance.finalize({from: OWNER});
+			
+			await ProjectInitializator.createVerifiedUsers(OWNER, [USER_ONE]);
+
+			await tokenInstance.addMinter(OWNER);
+			let userOneBalanceBeforeMint = await tokenInstance.balanceOf.call(USER_ONE);
+			await tokenInstance.mint(USER_ONE, MINT_TOKENS_AMOUNT, {from: OWNER});
+			let userOneAfterBeforeMint = await tokenInstance.balanceOf.call(USER_ONE);
+
+			assert.bigNumberEQbigNumber(userOneBalanceBeforeMint, userOneAfterBeforeMint.minus(MINT_TOKENS_AMOUNT));
 		});
 
 	});
