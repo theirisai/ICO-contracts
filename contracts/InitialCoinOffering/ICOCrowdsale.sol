@@ -32,7 +32,6 @@ contract ICOCrowdsale is Ownable, FinalizableCrowdsale, WhitelistedCrowdsale {
     uint256 public constant REGULAR_RATE = 100;
     uint256 public constant PUBLIC_SALES_SPECIAL_USERS_RATE = 120; // 20% bonus
 
-    uint256 public constant DEFAULT_CROWDSALE_DURATION = 7 weeks;
     uint256 public constant DEFAULT_PRESALES_DURATION = 3 weeks;
     uint256 public constant MAX_PRESALES_EXTENSION= 12 weeks;
 
@@ -57,8 +56,6 @@ contract ICOCrowdsale is Ownable, FinalizableCrowdsale, WhitelistedCrowdsale {
         FinalizableCrowdsale()
         Crowdsale(startTime, endTime, REGULAR_RATE, wallet)
     {
-        require((endTime.sub(startTime)) == DEFAULT_CROWDSALE_DURATION);
-
         // Set default presales end date
         preSalesEndDate = startTime.add(DEFAULT_PRESALES_DURATION);
         

@@ -83,15 +83,6 @@ contract('ICOCrowdsale', function (accounts) {
 			assert(tokenAddress.length > 0, "Token length is 0");
 			assert(tokenAddress != "0x0");
 		})
-
-		it("should revert if the ico crowdsale duration is not 7 weeks", async function () {
-			startTime = web3FutureTime(web3);
-			endTime = startTime + DAY;
-
-			await expectThrow(ICOCrowdsale.new(startTime, endTime, WALLET, hookOperatorAddress, {
-				from: OWNER
-			}));
-		});
 	});
 
 	describe('Ownership', () => {

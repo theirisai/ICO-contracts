@@ -16,6 +16,8 @@ contract UserFactory is IUserFactory, OwnableUpgradeableImplementation {
     address public userCreator;
     address public hookOperatorAddress;
 
+    uint public usersBatchLimit;
+
     IDataContract public dataContract;
 
     address[] public users;
@@ -71,6 +73,20 @@ contract UserFactory is IUserFactory, OwnableUpgradeableImplementation {
         return true; 
     }
 
+    function createMultipleUsers(address[] kycUsers, uint[] usersKYCStatus) external onlyUserCreator returns(bool _success) {
+        require(kycUsers.length == usersKYCStatus.length);
+        require(kycUsers.length <= usersBatchLimit);
+
+        for(uint i = 0; i < kycUsers.length; i++) { 
+            IUserContract userContract = createUserContract(kycUsers[i]);
+            userContract.initKYCUser(usersKYCStatus[i]);
+        }
+
+        emit LogMultipleUsersCreate(kycUsers, usersKYCStatus);
+
+        return true;
+    }
+
     function createUserContract(address _newUserAddress) internal onlyNotInitedUser(_newUserAddress) returns(IUserContract) {
         require(_newUserAddress != address(0));
 
@@ -99,6 +115,19 @@ contract UserFactory is IUserFactory, OwnableUpgradeableImplementation {
         require(_userAddress != address(0));
 
         return usersContracts[_userAddress];
+    }
+
+    /**
+        Users batch limit
+    */
+    function setUsersBatchLimit(uint batchLimit) external onlyOwner {
+        usersBatchLimit = batchLimit;
+
+        emit LogUsersBatchLimitSet(batchLimit);
+    }
+
+    function getUsersBatchLimit() external view returns(uint _batchLimit) {
+        return usersBatchLimit;
     }
 
     /**
