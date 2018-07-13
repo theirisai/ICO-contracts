@@ -66,21 +66,24 @@ run = async function () {
     let requiredConfirmations = 2;
 
     const owner = wallet.address;
-    const kycAdmin = owner; // "0x32F8B86C35EEb383261F9B0e95d125d4073eB51F"
-    const lister = owner; // "0xA764b66134E8D720191bEe0F9326dDd7AAc73d30";
-    const userCreator = owner; // "0x513cc910403dfb4F0E59dD1ede5801a880d1A82B"
+    const kycAdmin = "0x32F8B86C35EEb383261F9B0e95d125d4073eB51F";
+    const lister = "0x1DB59f0cF76Ca0360F9d6d8f0766430493b7b25f";
+    const userCreator = "0x513cc910403dfb4F0E59dD1ede5801a880d1A82B";
     let overDepositTokensRecipient; // This is set after MultiSig deployment on line 104
     // Exchange Oracle
     const initialOracleRate = 100000;
     const realWorldRate = 100;
 
     // Crowdsale and Vesting
-    const crowdsaleDuration = 49 * 24 * 60 * 60; // 7 weeks
+    const crowdsaleDuration = 77 * 24 * 60 * 60; // 11 weeks
     const startTime = getFutureTimestamp(15); // 15 Minutes from now
     const endTime =	startTime + crowdsaleDuration;
-    const softCap = ethers.utils.parseEther('10000');
-    const hardCap = ethers.utils.parseEther('80000');
+    const softCap = ethers.utils.parseEther('20000');
+    const hardCap = ethers.utils.parseEther('167000');
     const token = 1000000000000000000;
+
+    // UserFactory
+    const createUsersBatchLimit = 20;
 
     // HookOperator
     const balancePercentageLimit = 2;
@@ -97,11 +100,11 @@ run = async function () {
     const maxBalanceSemiVerifiedUser = ((280 * token) / realWorldRate).toString(); // 280 tokens AIUR -> ETH
 
     // Deploy Owner MultiSig wallet
-    let ownerMultiSigDeployTxn = await ethers.Contract.getDeployTransaction(multiSigJson.bytecode, multiSigJson.abi, allAccounts, requiredConfirmations);
-    let ownerMultiSigWalletAddress = await runDeployment(wallet, ownerMultiSigDeployTxn, multiSigJson.contractName);
+    // let ownerMultiSigDeployTxn = await ethers.Contract.getDeployTransaction(multiSigJson.bytecode, multiSigJson.abi, allAccounts, requiredConfirmations);
+    let ownerMultiSigWalletAddress = "0x60D18008982cd7Fab6A62C3CC913FB920e575964"; // await runDeployment(wallet, ownerMultiSigDeployTxn, multiSigJson.contractName);
 
     // Deploy Ether Holder MultiSig wallet
-    let etherHolderMultiSigWalletAddress = await runDeployment(wallet, ownerMultiSigDeployTxn, multiSigJson.contractName);
+    let etherHolderMultiSigWalletAddress = "0xcbFFb1c24f9c93382dabDAD8c72EFaB48C11b97A"; // await runDeployment(wallet, ownerMultiSigDeployTxn, multiSigJson.contractName);
     overDepositTokensRecipient = etherHolderMultiSigWalletAddress;
 
     // Deploy library
@@ -239,6 +242,12 @@ run = async function () {
     await logger(userFactoryJson.contractName, setDataContractTxn.hash, "setDataContract");
     let setUserManagerAddressTxn = await userFactoryInstance.setUserManagerAddress(userManagerInstance.address, overrideOptions);
     await logger(userFactoryJson.contractName, setUserManagerAddressTxn.hash, "setUserManagerAddress");
+    let setHookOperatorAddressTxn = await userFactoryInstance.setHookOperatorAddress(hookOperatorInstance.address, overrideOptions);
+    await logger(userFactoryJson.contractName, setHookOperatorAddressTxn.hash, "setHookOperatorAddress");
+    let setKYCVerificationInstanceTxn = await userFactoryInstance.setKYCVerificationInstance(KYCVerificationInstance.address, overrideOptions);
+    await logger(userFactoryJson.contractName, setKYCVerificationInstanceTxn.hash, "setKYCVerificationInstance");
+    let setUsersBatchLimitTxn = await userFactoryInstance.setUsersBatchLimit(createUsersBatchLimit, overrideOptions);
+    await logger(userFactoryJson.contractName, setUsersBatchLimitTxn.hash, "setUsersBatchLimit");
 
     setDataContractTxn = await userManagerInstance.setDataContract(dataContractInstance.address, overrideOptions);
     await logger(userManagerJson.contractName, setDataContractTxn.hash, "setDataContract");
@@ -273,6 +282,42 @@ run = async function () {
 
     let setUserManagerContractTxn = await crowdsaleInstance.setUserManagerContract(userManagerInstance.address, overrideOptions);
     await logger(icoCappedRefundableCrowdsaleJson.contractName, setUserManagerContractTxn.hash, "setUserManagerContract");
+
+    // DataContract
+    let transferOwnershipDataContractTxn = await dataContractInstance.transferOwnership(ownerMultiSigWalletAddress, overrideOptions);
+    await logger(dataContractJson.contractName, transferOwnershipDataContractTxn.hash, "transferOwnershipDataContractTxn");
+
+    // HookOperator
+    let transferOwnershipHookOperatorTxn = await hookOperatorInstance.transferOwnership(ownerMultiSigWalletAddress, overrideOptions);
+    await logger(dataContractJson.contractName, transferOwnershipHookOperatorTxn.hash, "transferOwnershipHookOperatorTxn");
+
+    // Crowdsale
+    let transferOwnershipCrowdSaleTxn = await crowdsaleInstance.transferOwnership(ownerMultiSigWalletAddress, overrideOptions);
+    await logger(dataContractJson.contractName, transferOwnershipCrowdSaleTxn.hash, "transferOwnershipCrowdSaleTxn");
+
+    // Token
+    let transferOwnershipTokenTxn = await tokenInstance.transferOwnership(ownerMultiSigWalletAddress, overrideOptions);
+    await logger(dataContractJson.contractName, transferOwnershipTokenTxn.hash, "transferOwnershipTokenTxn");
+
+    // KYCContract
+    let transferOwnershipKYCTxn = await KYCVerificationInstance.transferOwnership(ownerMultiSigWalletAddress, overrideOptions);
+    await logger(dataContractJson.contractName, transferOwnershipKYCTxn.hash, "transferOwnershipKYCTxn");
+
+    // Oracle
+    let transferOwnershipExchangeTxn = await exchangeOracleInstance.transferOwnership(ownerMultiSigWalletAddress, overrideOptions);
+    await logger(dataContractJson.contractName, transferOwnershipExchangeTxn.hash, "transferOwnershipExchangeTxn");
+
+    // UserFactory
+    let transferOwnershipUserFactoryTxn = await userFactoryInstance.transferOwnership(ownerMultiSigWalletAddress, overrideOptions);
+    await logger(dataContractJson.contractName, transferOwnershipUserFactoryTxn.hash, "transferOwnershipUserFactoryTxn");
+
+    // UserManager
+    let transferOwnershipUserManagerTxn = await userManagerInstance.transferOwnership(ownerMultiSigWalletAddress, overrideOptions);
+    await logger(dataContractJson.contractName, transferOwnershipUserManagerTxn.hash, "transferOwnershipUserManagerTxn");
+
+    // Vesting
+    let transferOwnershipVestingTxn = await vestingInstance.transferOwnership(ownerMultiSigWalletAddress, overrideOptions);
+    await logger(dataContractJson.contractName, transferOwnershipVestingTxn.hash, "transferOwnershipVestingTxn");
 
     console.log("Done!");
 };
