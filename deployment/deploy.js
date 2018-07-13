@@ -4,7 +4,7 @@ const config = require("./config");
 const {runDeployment, localNodeProvider} = require("./provider");
 const {initWallet} = require("./provider");
 
-// const multiSigJson = require("./../build/contracts/MultiSigWallet");
+const multiSigJson = require("./../build/contracts/MultiSigWallet");
 
 const linkedListJson = require("./../build/contracts/LinkedList");
 
@@ -295,10 +295,6 @@ run = async function () {
     let transferOwnershipCrowdSaleTxn = await crowdsaleInstance.transferOwnership(ownerMultiSigWalletAddress, overrideOptions);
     await logger(dataContractJson.contractName, transferOwnershipCrowdSaleTxn.hash, "transferOwnershipCrowdSaleTxn");
 
-    // // Token // Lyubo
-    // let transferOwnershipTokenTxn = await tokenInstance.transferOwnership(ownerMultiSigWalletAddress, overrideOptions);
-    // await logger(dataContractJson.contractName, transferOwnershipTokenTxn.hash, "transferOwnershipTokenTxn");
-
     // KYCContract
     let transferOwnershipKYCTxn = await KYCVerificationInstance.transferOwnership(ownerMultiSigWalletAddress, overrideOptions);
     await logger(dataContractJson.contractName, transferOwnershipKYCTxn.hash, "transferOwnershipKYCTxn");
@@ -325,6 +321,11 @@ run = async function () {
 logger = async function (contractName, txnHash, functionName) {
     console.log("Function " + contractName + " " + functionName + " txnHash: \n .... ", txnHash);
     await localNodeProvider.waitForTransaction(txnHash);
+    const receipt = await localNodeProvider.getTransactionReceipt(txnHash);
+
+    if (receipt.status === 0) {
+        throw new Error("Transaction failed: ", receipt.transactionHash);
+    }
 };
 
 run();
