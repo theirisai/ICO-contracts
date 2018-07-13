@@ -23,7 +23,7 @@ contract ICOCrowdsale is Ownable, FinalizableCrowdsale, WhitelistedCrowdsale {
     uint256 public constant MAX_FUNDS_RAISED_DURING_PRESALE = 20000 ether;
     
     /*
-        The limit below allows a user to have maximum tokens balance of 2%(160 000 tokens) of the hard cap(80 000 ethers)
+        The limit below allows a user to have maximum tokens balance of 2%(400 000 tokens) of the hard cap(167 000 ethers)
         It only applies through crowdsale period
     */
     uint256 public constant MAX_USER_TOKENS_BALANCE = 400000 * (10**18); // 400 000 tokens
