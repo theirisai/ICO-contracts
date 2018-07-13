@@ -4,7 +4,7 @@ const config = require("./config");
 const {runDeployment, localNodeProvider} = require("./provider");
 const {initWallet} = require("./provider");
 
-const multiSigJson = require("./../build/contracts/MultiSigWallet");
+// const multiSigJson = require("./../build/contracts/MultiSigWallet");
 
 const linkedListJson = require("./../build/contracts/LinkedList");
 
@@ -295,9 +295,9 @@ run = async function () {
     let transferOwnershipCrowdSaleTxn = await crowdsaleInstance.transferOwnership(ownerMultiSigWalletAddress, overrideOptions);
     await logger(dataContractJson.contractName, transferOwnershipCrowdSaleTxn.hash, "transferOwnershipCrowdSaleTxn");
 
-    // Token
-    let transferOwnershipTokenTxn = await tokenInstance.transferOwnership(ownerMultiSigWalletAddress, overrideOptions);
-    await logger(dataContractJson.contractName, transferOwnershipTokenTxn.hash, "transferOwnershipTokenTxn");
+    // // Token // Lyubo
+    // let transferOwnershipTokenTxn = await tokenInstance.transferOwnership(ownerMultiSigWalletAddress, overrideOptions);
+    // await logger(dataContractJson.contractName, transferOwnershipTokenTxn.hash, "transferOwnershipTokenTxn");
 
     // KYCContract
     let transferOwnershipKYCTxn = await KYCVerificationInstance.transferOwnership(ownerMultiSigWalletAddress, overrideOptions);

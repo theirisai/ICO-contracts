@@ -28,7 +28,7 @@ contract('ICOCappedRefundableCrowdsale', function (accounts) {
 
 	const DAY = 24 * 60 * 60;
 	const WEEK = 7 * DAY;
-	const CROWDSALE_DURATION = 7 * WEEK;
+	const CROWDSALE_DURATION = 11 * WEEK;
 
 	const REGULAR_RATE = 100; // 0,01 eth = 1 token
 	const SPECIAL_PUBLICSALES_RATE = 120;
@@ -271,6 +271,32 @@ contract('ICOCappedRefundableCrowdsale', function (accounts) {
 			assert.bigNumberEQNumber(buyerDeposit, WEI_IN_ETHER);
 		});
 
+		it('should process tokens purchase when crowdsale is extended', async () => {
+			const weiSent = WEI_IN_ETHER;
+			let tokenAddress = await crowdsaleInstance.token.call();
+			let tokenInstance = await ICOTokenExtended.at(tokenAddress);
+
+			await timeTravel(web3, CROWDSALE_DURATION);
+			
+			await expectThrow(
+				crowdsaleInstance.buyTokens(USER_ONE, {
+					value: weiSent,
+					from: USER_ONE
+				})
+			);
+
+			await crowdsaleInstance.extendPreSalesPeriodWith(WEEK, {from: OWNER});
+
+			await crowdsaleInstance.buyTokens(USER_ONE, {
+				value: weiSent,
+				from: USER_ONE
+			});
+
+			let userOneBalance = await tokenInstance.balanceOf.call(USER_ONE);
+
+			assert.bigNumberEQNumber(userOneBalance, REGULAR_RATE * weiSent);
+		});
+
 		it("should throw when the purchase is outside the crowdsale period", async function () {
 			const weiSent = WEI_IN_ETHER;
 
@@ -343,7 +369,7 @@ contract('ICOCappedRefundableCrowdsale', function (accounts) {
 
 		const INVESTOR_CONTRIBUTION = WEI_IN_ETHER * 5; // 5 ethers
 		const DEDUCTION = 3; // 3% from investor's contribution
-		const DEDUCTED_VALUE = (INVESTOR_CONTRIBUTION * 3) / 100;
+		const DEDUCTED_VALUE = (INVESTOR_CONTRIBUTION * DEDUCTION) / 100;
 		const REFUNDS_WHIT_DEDUCTED_VALUE = INVESTOR_CONTRIBUTION - DEDUCTED_VALUE;
 		
 		beforeEach(async () => {

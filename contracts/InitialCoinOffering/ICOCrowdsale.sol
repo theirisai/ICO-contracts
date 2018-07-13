@@ -86,6 +86,7 @@ contract ICOCrowdsale is Ownable, FinalizableCrowdsale, WhitelistedCrowdsale {
         require(extensionTime <= MAX_PRESALES_EXTENSION);
         
         preSalesEndDate = preSalesEndDate.add(extensionTime);
+        endTime = endTime.add(extensionTime);
 
         emit LogPrivatesaleExtend(extensionTime);
     }

@@ -14,7 +14,6 @@ const expectThrow = require('./../util').expectThrow;
 const getEvent = require('./../util').getEvent;
 require("./../assertExtensions");
 
-// Todo: write tests
 contract('User Factory', function (accounts) {
 
     const OWNER = accounts[0];

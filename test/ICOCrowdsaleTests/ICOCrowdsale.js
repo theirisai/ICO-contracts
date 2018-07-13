@@ -265,6 +265,23 @@ contract('ICOCrowdsale', function (accounts) {
 			assert.bigNumberEQbigNumber(presalesEndBeforeExtension, presalesEndAfterExtension.minus(WEEK));
 		});
 
+		it('should buy tokens on presales rate when extending presales period', async () => {
+			const weiSent = 1 * WEI_IN_ETHER;
+			
+			await crowdsaleInstance.extendPreSalesPeriodWith(WEEK, {from: OWNER});
+			
+			await timeTravel(web3, DEFAULT_PRESALES_DURATION + DAY);
+
+			await crowdsaleInstance.buyTokens(USER_ONE, {
+				value: weiSent,
+				from: USER_ONE
+			});
+
+			let userOneBalance = await tokenInstance.balanceOf.call(USER_ONE);
+
+			assert.bigNumberEQNumber(userOneBalance, REGULAR_RATE * weiSent);
+		});
+
 		it('should throw on try to extend presales period with more than 12 weeks', async () => {
 			await expectThrow(
 				crowdsaleInstance.extendPreSalesPeriodWith(WEEK * 13, {from: OWNER})
