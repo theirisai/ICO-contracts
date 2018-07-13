@@ -27,7 +27,8 @@ contract('ICOCrowdsale', function (accounts) {
 
 	const DAY = 24 * 60 * 60;
 	const WEEK = 7 * DAY;
-	const CROWDSALE_DURATION = 7 * WEEK;
+	const CROWDSALE_DURATION = 11 * WEEK;
+	const DEFAULT_PRESALES_DURATION = 7 * WEEK;
 
 	const REGULAR_RATE = 100;
 	const PRESALES_SPECIAL_USERS_RATE = 150 // 50% bonus
@@ -82,15 +83,6 @@ contract('ICOCrowdsale', function (accounts) {
 
 			assert(tokenAddress.length > 0, "Token length is 0");
 			assert(tokenAddress != "0x0");
-		})
-
-		it("should revert if the ico crowdsale duration is not 7 weeks", async function () {
-			startTime = web3FutureTime(web3);
-			endTime = startTime + DAY;
-
-			await expectThrow(ICOCrowdsale.new(startTime, endTime, WALLET, hookOperatorAddress, {
-				from: OWNER
-			}));
 		});
 	});
 
@@ -314,16 +306,14 @@ contract('ICOCrowdsale', function (accounts) {
 		});
 
 		it('should convert to publicsales 1 period if reach presales maximum funds raised', async () => {
-			let weiSent = 1600 * WEI_IN_ETHER; // max ethers for max tokens
-
-			let presalesEndDate1 = await crowdsaleInstance.preSalesEndDate.call();
+			let weiSent = 4000 * WEI_IN_ETHER; // max ethers for max tokens
 
 			/*
-				Presales maximum funds raised is 9000eth
-				Maximum ethers amount that a user can send to buy tokens is 1600eth
-				Users count for reaching presales maximum funds raised: 9000 / 1600 = 6
+				Presales maximum funds raised is 20 000eth
+				Maximum ethers amount that a user can send to buy tokens is 4 000eth
+				Users count for reaching presales maximum funds raised: 20 000 / 4 000 = 5
 			*/
-			let users = generateUsers(6);
+			let users = generateUsers(5);
 			await ProjectInitializator.createVerifiedUsers(OWNER, users);
 
 			for (let i = 0; i < users.length; i++) {
@@ -333,8 +323,10 @@ contract('ICOCrowdsale', function (accounts) {
 				});
 			}
 
-			weiSent = 1 * WEI_IN_ETHER;
+			let presalesEndDate = await crowdsaleInstance.preSalesEndDate.call();
+			assert.isTrue(presalesEndDate == web3Now(web3));
 
+			weiSent = 1 * WEI_IN_ETHER;
 			/*
 				Buy tokens after the presales maximum funds raised reach 
 			*/
@@ -343,10 +335,8 @@ contract('ICOCrowdsale', function (accounts) {
 				from: USER_ONE
 			});
 
-			let presalesEndDate = await crowdsaleInstance.preSalesEndDate.call();
 			let userOneBalance = await tokenInstance.balanceOf.call(USER_ONE);
 
-			assert.isTrue(presalesEndDate == web3Now(web3));
 			assert.bigNumberEQNumber(userOneBalance, PUBLICSALES_1_PERIOD_RATE * weiSent);
 		});
 
@@ -369,7 +359,7 @@ contract('ICOCrowdsale', function (accounts) {
 		}
 
 		it("should convert to publicsales period invite-only rate", async function () {
-			await timeTravel(web3, 3 * WEEK); // 3 WEEK - end of the presale period and begining of the publicsale
+			await timeTravel(web3, DEFAULT_PRESALES_DURATION); // 3 WEEK - end of the presale period and beginning of the publicsale
 			const weiSent = 1 * WEI_IN_ETHER;
 
 			await crowdsaleInstance.addPublicSalesSpecialUser(USER_ONE, {from: LISTER});
@@ -385,7 +375,7 @@ contract('ICOCrowdsale', function (accounts) {
 		});
 
 		it("should convert to publicsales first period rate", async function () {
-			await timeTravel(web3, 3 * WEEK); // the first week of publicsale period - end of the presale period and begining of the publicsale
+			await timeTravel(web3, DEFAULT_PRESALES_DURATION); // the first week of publicsale period - end of the presale period and beginning of the publicsale
 			const weiSent = 1 * WEI_IN_ETHER;
 
 			await crowdsaleInstance.buyTokens(USER_ONE, {
@@ -399,7 +389,7 @@ contract('ICOCrowdsale', function (accounts) {
 		});
 
 		it("should convert to publicsales second period rate", async function () {
-			await timeTravel(web3, 4 * WEEK); // the second week of publicsale period
+			await timeTravel(web3, DEFAULT_PRESALES_DURATION + WEEK); // the second week of publicsale period
 			const weiSent = 1 * WEI_IN_ETHER;
 
 			await crowdsaleInstance.buyTokens(USER_ONE, {
@@ -413,7 +403,7 @@ contract('ICOCrowdsale', function (accounts) {
 		})
 
 		it("should convert to publicsales third period rate", async function () {
-			await timeTravel(web3, 5 * WEEK); // the third week of publicsale period
+			await timeTravel(web3, DEFAULT_PRESALES_DURATION + (2 * WEEK)); // the third week of publicsale period
 			const weiSent = 1 * WEI_IN_ETHER;
 
 			await crowdsaleInstance.buyTokens(USER_ONE, {
@@ -427,7 +417,7 @@ contract('ICOCrowdsale', function (accounts) {
 		});
 		
 		it("should convert to regular rate", async function () {
-			await timeTravel(web3, 6 * WEEK); // the fourth week of publicsale period
+			await timeTravel(web3, DEFAULT_PRESALES_DURATION + (3 * WEEK)); // the fourth week of publicsale period
 			const weiSent = 1 * WEI_IN_ETHER;
 
 			await crowdsaleInstance.buyTokens(USER_ONE, {
@@ -460,7 +450,7 @@ contract('ICOCrowdsale', function (accounts) {
 		it('should process tokens purchase from non-whitelisted address to himself', async () => {
 			let ownerBalanceBeforeBuy = await tokenInstance.balanceOf.call(OWNER);
 
-			let tx = await crowdsaleInstance.buyTokens(OWNER, {
+			await crowdsaleInstance.buyTokens(OWNER, {
 				value: WEI_SENT,
 				from: OWNER
 			});
@@ -476,7 +466,7 @@ contract('ICOCrowdsale', function (accounts) {
 
 			let userOneBalanceBeforeBuy = await tokenInstance.balanceOf.call(USER_ONE);
 
-			let tx = await crowdsaleInstance.buyTokens(USER_ONE, {
+			await crowdsaleInstance.buyTokens(USER_ONE, {
 				value: WEI_SENT,
 				from: USER_ONE
 			});
@@ -492,7 +482,7 @@ contract('ICOCrowdsale', function (accounts) {
 
 			let userOneBalanceBeforeBuy = await tokenInstance.balanceOf.call(USER_ONE);
 
-			let tx = await crowdsaleInstance.buyTokens(USER_ONE, {
+			await crowdsaleInstance.buyTokens(USER_ONE, {
 				value: WEI_SENT,
 				from: OWNER
 			});
@@ -508,7 +498,7 @@ contract('ICOCrowdsale', function (accounts) {
 
 			let ownerBalanceBeforeBuy = await tokenInstance.balanceOf.call(OWNER);
 
-			let tx = await crowdsaleInstance.buyTokens(OWNER, {
+			await crowdsaleInstance.buyTokens(OWNER, {
 				value: WEI_SENT,
 				from: USER_ONE
 			});
@@ -591,7 +581,7 @@ contract('ICOCrowdsale', function (accounts) {
 		});
 
 		it('should throw when the user\'s balance is going to be over the user max tokens balance limit', async () => {
-			const weiSent = 1601 * WEI_IN_ETHER; // 1 601 ethers; the limit is 1 600
+			const weiSent = 4001 * WEI_IN_ETHER; // 4 001 ethers; the tokens limit per user is 400 000
 
 			await expectThrow(
 				crowdsaleInstance.buyTokens(USER_ONE, {
@@ -654,7 +644,7 @@ contract('ICOCrowdsale', function (accounts) {
 		});
 
 		it('should not mint more bounty tokens than the limit', async () => {
-			bonusTokens = 40001 * WEI_IN_ETHER; // 40 001 tokens
+			bonusTokens = 100001 * WEI_IN_ETHER; // the limit is 100 000
 
 			await expectThrow(crowdsaleInstance.createBountyToken(USER_ONE, bonusTokens, {
 				from: OWNER
@@ -662,7 +652,7 @@ contract('ICOCrowdsale', function (accounts) {
 		});
 
 		it('should not exceed bounty tokens limit', async () => {
-			bonusTokens = 25000 * WEI_IN_ETHER; // 8000 tokens
+			bonusTokens = 50001 * WEI_IN_ETHER; // 50 000 tokens
 
 			await crowdsaleInstance.createBountyToken(USER_ONE, bonusTokens, {from: OWNER});
 
@@ -695,12 +685,26 @@ contract('ICOCrowdsale', function (accounts) {
 			assert.equal(afterOwner, OWNER, "The owner was not set to the crowdsale OWNER");
 		});
 
-		it("should not unpause the token", async function () {
+		it("should pause the token", async function () {
 			await crowdsaleInstance.finalize({from: OWNER});
 			
 			let paused = await tokenInstance.paused.call();
 			
-			assert.isTrue(paused, "The token contract was unpaused");
+			assert.isTrue(paused, "The token contract is unpaused");
+		});
+
+		it("should mint tokens when it is paused", async function () {
+			const MINT_TOKENS_AMOUNT = "10000000000000000000"; // 10 tokens
+			await crowdsaleInstance.finalize({from: OWNER});
+			
+			await ProjectInitializator.createVerifiedUsers(OWNER, [USER_ONE]);
+
+			await tokenInstance.addMinter(OWNER);
+			let userOneBalanceBeforeMint = await tokenInstance.balanceOf.call(USER_ONE);
+			await tokenInstance.mint(USER_ONE, MINT_TOKENS_AMOUNT, {from: OWNER});
+			let userOneAfterBeforeMint = await tokenInstance.balanceOf.call(USER_ONE);
+
+			assert.bigNumberEQbigNumber(userOneBalanceBeforeMint, userOneAfterBeforeMint.minus(MINT_TOKENS_AMOUNT));
 		});
 
 	});

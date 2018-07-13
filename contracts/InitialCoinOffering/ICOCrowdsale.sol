@@ -19,21 +19,20 @@ contract ICOCrowdsale is Ownable, FinalizableCrowdsale, WhitelistedCrowdsale {
     bool public isPresalesNotEndedInAdvance = true;
 
     uint256 public constant MIN_CONTRIBUTION_AMOUNT = 50 finney; // 0.05 ETH
-    uint256 public constant MAX_BOUNTYTOKENS_AMOUNT = 40000 * (10**18); // 10 000 tokens
-    uint256 public constant MAX_FUNDS_RAISED_DURING_PRESALE = 9000 ether;
+    uint256 public constant MAX_BOUNTYTOKENS_AMOUNT = 100000 * (10**18); // 100 000 tokens
+    uint256 public constant MAX_FUNDS_RAISED_DURING_PRESALE = 20000 ether;
     
     /*
-        The limit below allows a user to have maximum tokens balance of 2%(160 000 tokens) of the hard cap(80 000 ethers)
+        The limit below allows a user to have maximum tokens balance of 2%(400 000 tokens) of the hard cap(167 000 ethers)
         It only applies through crowdsale period
     */
-    uint256 public constant MAX_USER_TOKENS_BALANCE = 160000 * (10**18); // 160 000 tokens
+    uint256 public constant MAX_USER_TOKENS_BALANCE = 400000 * (10**18); // 400 000 tokens
 
     // 0.01 eth = 1 token
     uint256 public constant REGULAR_RATE = 100;
     uint256 public constant PUBLIC_SALES_SPECIAL_USERS_RATE = 120; // 20% bonus
 
-    uint256 public constant DEFAULT_CROWDSALE_DURATION = 7 weeks;
-    uint256 public constant DEFAULT_PRESALES_DURATION = 3 weeks;
+    uint256 public constant DEFAULT_PRESALES_DURATION = 7 weeks;
     uint256 public constant MAX_PRESALES_EXTENSION= 12 weeks;
 
     /*
@@ -57,8 +56,6 @@ contract ICOCrowdsale is Ownable, FinalizableCrowdsale, WhitelistedCrowdsale {
         FinalizableCrowdsale()
         Crowdsale(startTime, endTime, REGULAR_RATE, wallet)
     {
-        require((endTime.sub(startTime)) == DEFAULT_CROWDSALE_DURATION);
-
         // Set default presales end date
         preSalesEndDate = startTime.add(DEFAULT_PRESALES_DURATION);
         

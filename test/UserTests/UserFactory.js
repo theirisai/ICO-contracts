@@ -22,9 +22,11 @@ contract('User Factory', function (accounts) {
     const USER_ONE = accounts[2];
     const USER_CREATOR = accounts[3];
 
-    const KYC_VERIFICATION = accounts[4];
+    const NOT_EXISTING_USER = "0x0000000000000000000000000000000000000000";
 
     const USER_KYC_STATUS = 0; // Anonymous
+    const BATCH_LIMIT = 20;
+    
 
     let userFactoryInstance;
 
@@ -185,12 +187,26 @@ contract('User Factory', function (accounts) {
                 );
             });
         });
+
+        describe('Users Batch Limit', () => {
+            it('should set batch limit correctly', async () => {
+                await userFactoryInstance.setUsersBatchLimit(BATCH_LIMIT, {from: OWNER});
+                let batchLimit = await userFactoryInstance.getUsersBatchLimit();
+
+                assert.bigNumberEQNumber(batchLimit, BATCH_LIMIT, "Batch limit is not set correctly");
+            });
+
+            it('should throw if non-owner try to set batch limit', async () => {
+                await expectThrow(
+                    userFactoryInstance.setUsersBatchLimit(BATCH_LIMIT, {from: NOT_OWNER})
+                );
+            });
+        });
     });
 
     describe('Create User', () => {
 
         let dataContract;
-        const NOT_EXISTING_USER = "0x0000000000000000000000000000000000000000";
 
         beforeEach(async () => {
             let userContract = await ProjectInitializator.initUserContract(OWNER);
@@ -291,6 +307,132 @@ contract('User Factory', function (accounts) {
         });
     });
 
+    describe('Create Multiple Users', () => {
+        let dataContract;
+
+        const KYC_STATUS = {
+            ANONYMOUS: 0,
+            SEMI_VERIFIED: 1,
+            VERIFIED: 2
+        }
+
+        const users = [
+            '0xd9995bae12fee327256ffec1e3184d492bd94c31',
+            '0xd4fa489eacc52ba59438993f37be9fcc20090e39',
+            '0x760bf27cd45036a6c486802d30b5d90cffbe31fe',
+            '0x56a32fff5e5a8b40d6a21538579fb8922df5258c',
+            '0xfec44e15328b7d1d8885a8226b0858964358f1d6',
+            '0xda8a06f1c910cab18ad187be1faa2b8606c2ec86',
+            '0x8199de05654e9afa5c081bce38f140082c9a7733',
+            '0x28bf45680ca598708e5cdacc1414fcac04a3f1ed',
+            '0xf0508f89e26bd6b00f66a9d467678c7ed16a3c5a',
+            '0x87e0ed760fb316eeb94bd9cf23d1d2be87ace3d8',
+            '0xd9995bae12fee327256ffec1e3184d492bd94c32',
+            '0xd4fa489eacc52ba59438993f37be9fcc20090e36',
+            '0x760bf27cd45036a6c486802d30b5d90cffbe31fb',
+            '0x56a32fff5e5a8b40d6a21538579fb8922df5258a',
+            '0xfec44e15328b7d1d8885a8226b0858964358f1d2',
+            '0xda8a06f1c910cab18ad187be1faa2b8606c2ec83',
+            '0x8199de05654e9afa5c081bce38f140082c9a7732',
+            '0x28bf45680ca598708e5cdacc1414fcac04a3f1ea',
+            '0xf0508f89e26bd6b00f66a9d467678c7ed16a3c5b',
+            '0x87e0ed760fb316eeb94bd9cf23d1d2be87ace3d7'
+
+        ];
+        const usersStatuses = [
+            KYC_STATUS.ANONYMOUS,
+            KYC_STATUS.ANONYMOUS,
+            KYC_STATUS.SEMI_VERIFIED,
+            KYC_STATUS.SEMI_VERIFIED,
+            KYC_STATUS.VERIFIED,
+            KYC_STATUS.ANONYMOUS,
+            KYC_STATUS.SEMI_VERIFIED,
+            KYC_STATUS.VERIFIED,
+            KYC_STATUS.VERIFIED,
+            KYC_STATUS.SEMI_VERIFIED,
+            KYC_STATUS.ANONYMOUS,
+            KYC_STATUS.ANONYMOUS,
+            KYC_STATUS.SEMI_VERIFIED,
+            KYC_STATUS.SEMI_VERIFIED,
+            KYC_STATUS.VERIFIED,
+            KYC_STATUS.ANONYMOUS,
+            KYC_STATUS.SEMI_VERIFIED,
+            KYC_STATUS.VERIFIED,
+            KYC_STATUS.VERIFIED,
+            KYC_STATUS.SEMI_VERIFIED
+        ];
+
+
+        beforeEach(async () => {
+            let userContract = await ProjectInitializator.initUserContract(OWNER);
+            dataContract = await ProjectInitializator.initDataContract(OWNER);
+
+            await initUserFactory();
+
+            await dataContract.setUserFactory(userFactoryInstance.address, {from: OWNER});
+            await userFactoryInstance.setDataContract(dataContract.address, {from: OWNER});
+
+            await userFactoryInstance.setImplAddress(userContract.address, {from: OWNER});
+            await userFactoryInstance.setUserCreator(USER_CREATOR, {from: OWNER});
+            await userFactoryInstance.setUsersBatchLimit(BATCH_LIMIT, {from: OWNER});
+        });
+
+        describe('Valid create', () => {
+            it('should create multiple users', async () => {
+
+                // It should not have any existing users before first create
+                await expectThrow(
+                    userFactoryInstance.getUserById(0),
+                );
+
+                await userFactoryInstance.createMultipleUsers(users, usersStatuses, {from: USER_CREATOR});
+                
+                for (let i = 0; i < users.length - 1; i++) {
+                    let userAddress = await userFactoryInstance.getUserById(i);
+
+                    let createdUserContractAddress = await userFactoryInstance.getUserContract(userAddress);
+                    let createdUserContract = await IUserContract.at(createdUserContractAddress);
+                    let isUserPolicyAccepted = await createdUserContract.isUserPolicyAccepted();
+                    
+                    let dataUser = await dataContract.getNodeData(users[i]);
+                    let userDataAddressAfterCreate = dataUser[0];
+        
+                    assert.isTrue(isUserPolicyAccepted, "User policy is not set correctly");
+                    assert.equal(userAddress, users[i], "User address is not saved successfully");
+                    assert.isTrue(createdUserContractAddress != NOT_EXISTING_USER, "User is not created successfully");
+                    assert.equal(userDataAddressAfterCreate, users[i], "User is not added to data contract successfully");
+                }
+            });
+        });
+
+        describe('Invalid create', () => {
+            it('should throw if non-user creator try to create multiple users', async () => {
+                await expectThrow(
+                    userFactoryInstance.createMultipleUsers(users, usersStatuses, {from: NOT_OWNER})
+                );
+            });
+
+            it('should throw on attempt to create multiple users, when users count and statuses count are different', async () => {
+                users.pop();
+
+                await expectThrow(
+                    userFactoryInstance.createMultipleUsers(users, usersStatuses, {from: USER_CREATOR})
+                );
+            });
+
+            it('should throw if users count is over the batch create limit', async () => {
+                const NEW_BATCH_LIMIT = 10;
+                await userFactoryInstance.setUsersBatchLimit(NEW_BATCH_LIMIT, {from: OWNER});
+                
+                assert.isTrue(users.length > NEW_BATCH_LIMIT, "Users batch limit is not updated correctly");
+
+                await expectThrow(
+                    userFactoryInstance.createMultipleUsers(users, usersStatuses, {from: USER_CREATOR})
+                );
+            });
+        });
+    });
+
     describe('Get User', () => {
 
         beforeEach(async () => {
@@ -369,7 +511,6 @@ contract('User Factory', function (accounts) {
         let newImplementationInstance;
 
         const TRANSACTION_VOLUME = 10;
-        const NOT_EXISTING_USER = "0x0000000000000000000000000000000000000000";
 
         beforeEach(async () => {
             await initUserFactory();
