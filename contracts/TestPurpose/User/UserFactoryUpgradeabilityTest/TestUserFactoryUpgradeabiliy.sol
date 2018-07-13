@@ -78,7 +78,7 @@ contract TestUserFactoryUpgradeabiliy is ITestUserFactoryUpgradeabiliy, OwnableU
         return true; 
     }
 
-    function createMultipleUsers(address[] kycUsers, uint[] usersKYCStatus) external onlyUserCreator returns(bool _success) {
+    function createMultipleUsers(address[] kycUsers, uint8[] usersKYCStatus) external onlyUserCreator returns(bool _success) {
         require(users.length == usersKYCStatus.length);
         require(users.length <= usersBatchLimit);
 

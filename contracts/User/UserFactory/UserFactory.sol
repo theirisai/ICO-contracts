@@ -73,7 +73,7 @@ contract UserFactory is IUserFactory, OwnableUpgradeableImplementation {
         return true; 
     }
 
-    function createMultipleUsers(address[] kycUsers, uint[] usersKYCStatus) external onlyUserCreator returns(bool _success) {
+    function createMultipleUsers(address[] kycUsers, uint8[] usersKYCStatus) external onlyUserCreator returns(bool _success) {
         require(kycUsers.length == usersKYCStatus.length);
         require(kycUsers.length <= usersBatchLimit);
 

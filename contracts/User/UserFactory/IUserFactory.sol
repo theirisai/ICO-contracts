@@ -7,7 +7,7 @@ import "./../../Upgradeability/OwnableUpgradeableImplementation/IOwnableUpgradea
 contract IUserFactory is IOwnableUpgradeableImplementation {
     event LogExchangeUserCreation(address _exchangeUserAddress, uint256 _KYCStatus);
     event LogUserContractCreation(address _userAddress, uint256 _KYCStatus);
-    event LogMultipleUsersCreate(address[] users, uint[] usersKYCStatus);
+    event LogMultipleUsersCreate(address[] users, uint8[] usersKYCStatus);
     event LogUsersBatchLimitSet(uint batchLimit);
     event LogUserCreatorSet(address _newUserCreator);
     
@@ -19,7 +19,7 @@ contract IUserFactory is IOwnableUpgradeableImplementation {
  
     function createNewUser(address _userAddress, uint256 _KYCStatus) external returns(bool _success);
 
-    function createMultipleUsers(address[] kycUsers, uint[] usersKYCStatus) external returns(bool _success);
+    function createMultipleUsers(address[] kycUsers, uint8[] usersKYCStatus) external returns(bool _success);
     
     function createUserContract(address _newUserAddress) internal returns(IUserContract);
 
