@@ -19,6 +19,7 @@ contract ICOTokenExtended is ICOToken {
     event LogTransferOverFunds(address from, address to, uint ethersAmount, uint tokensAmount);
     event LogTaxTransfer(address from, address to, uint amount);
     event LogMinterAdd(address addedMinter);
+    event LogMinterRemove(address removedMinter);
 
     modifier onlyMinter(){
         require(minters[msg.sender]);
@@ -67,6 +68,12 @@ contract ICOTokenExtended is ICOToken {
         minters[minterAddress] = true;    
 
         emit LogMinterAdd(minterAddress);
+    }
+
+    function removeMinter(address minterAddress) external onlyOwner nonZeroAddress(minterAddress) {
+        minters[minterAddress] = false;    
+
+        emit LogMinterRemove(minterAddress);
     }
 
     function mint(address to, uint256 tokensAmount) public onlyMinter canMint nonZeroAddress(to) returns(bool) {

@@ -225,6 +225,27 @@ contract('ICOTokenExtended', function (accounts) {
 			});
 		});
 
+		describe('Remove minter', () => {
+			it('should remove a minter', async () => {
+				await icoTokenContract.removeMinter(MINTER, {from: OWNER});
+				let isMinterRemoved = !(await icoTokenContract.minters(MINTER, {from: OWNER}));
+	
+				assert.isTrue(isMinterRemoved, "Minter is not removed successfully");
+			});
+	
+			it('should not remove minter if the method caller is not the owner', async () => {
+				await expectThrow(
+					icoTokenContract.removeMinter(MINTER, {from: NOT_OWNER})
+				);
+			});
+
+			it('should not remove minter if it\'s address is invalid', async () => {
+				await expectThrow(
+					icoTokenContract.removeMinter("0x0", {from: OWNER})
+				);
+			});
+		});
+
 		describe('Mint', () => {
 
 			const MINTABLE_USERS = [
