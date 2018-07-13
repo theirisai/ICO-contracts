@@ -8,17 +8,21 @@ contract ITestUserFactoryUpgradeabiliy is IOwnableUpgradeableImplementation {
 
     event LogExchangeUserCreation(address _exchangeUserAddress, uint256 _KYCStatus);
     event LogUserContractCreation(address _userAddress, uint256 _KYCStatus);
+    event LogMultipleUsersCreate(address[] users, uint8[] usersKYCStatus);
+    event LogUsersBatchLimitSet(uint batchLimit);
     event LogUserCreatorSet(address _newUserCreator);
 
      // This function is used in upgradeability test
     function deleteUser(address _userAddress) external;
 
-    /**
+     /**
         User Functions
     */
     function createExchangeUser(address _exchangeUserAddress, uint256 _KYCStatus) external returns(bool _success);
  
     function createNewUser(address _userAddress, uint256 _KYCStatus) external returns(bool _success);
+
+    function createMultipleUsers(address[] kycUsers, uint8[] usersKYCStatus) external returns(bool _success);
     
     function createUserContract(address _newUserAddress) internal returns(IUserContract);
 
@@ -30,6 +34,13 @@ contract ITestUserFactoryUpgradeabiliy is IOwnableUpgradeableImplementation {
 
     function getUserContract(address _userAddress) external view returns(IUserContract _userContract);
 
+    /**
+        Users batch limit
+    */
+    function setUsersBatchLimit(uint batchLimit) external;
+
+    function getUsersBatchLimit() external view returns(uint _batchLimit);
+    
     /**
         User Creator
     */
@@ -71,7 +82,4 @@ contract ITestUserFactoryUpgradeabiliy is IOwnableUpgradeableImplementation {
     function setDataContract(address _dataContractAddress) external;
 
     function getDataContract() external view returns(IDataContract _dataContractInstance);
-
-   
-   
 }
