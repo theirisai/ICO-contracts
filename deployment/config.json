@@ -1,6 +1,6 @@
 {
-  "gasPrice": 11000000000,
+  "gasPrice": 58000000000,
   "gasLimit": 4700000,
   "infuraAPIKey": "Eu84fF12a9U6jQHlhjtB",
-  "network": "rinkeby"
+  "network": "mainnet"
 }

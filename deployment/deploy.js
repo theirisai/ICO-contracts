@@ -100,15 +100,15 @@ run = async function () {
     const maxBalanceSemiVerifiedUser = ((280 * token) / realWorldRate).toString(); // 280 tokens AIUR -> ETH
 
     // Deploy Owner MultiSig wallet
-    // let ownerMultiSigDeployTxn = await ethers.Contract.getDeployTransaction(multiSigJson.bytecode, multiSigJson.abi, allAccounts, requiredConfirmations);
-    let ownerMultiSigWalletAddress = "0x60D18008982cd7Fab6A62C3CC913FB920e575964"; // await runDeployment(wallet, ownerMultiSigDeployTxn, multiSigJson.contractName);
+    let ownerMultiSigDeployTxn = await ethers.Contract.getDeployTransaction(multiSigJson.bytecode, multiSigJson.abi, allAccounts, requiredConfirmations);
+    let ownerMultiSigWalletAddress = await runDeployment(wallet, ownerMultiSigDeployTxn, multiSigJson.contractName);
 
     // Deploy Ether Holder MultiSig wallet
-    let etherHolderMultiSigWalletAddress = "0xcbFFb1c24f9c93382dabDAD8c72EFaB48C11b97A"; // await runDeployment(wallet, ownerMultiSigDeployTxn, multiSigJson.contractName);
+    let etherHolderMultiSigWalletAddress = await runDeployment(wallet, ownerMultiSigDeployTxn, multiSigJson.contractName);
     overDepositTokensRecipient = etherHolderMultiSigWalletAddress;
 
     // Deploy library
-    let linkedListDeployTxn = await ethers.Contract.getDeployTransaction(linkedListJson.bytecode, linkedListJson.abi);
+    // let linkedListDeployTxn = await ethers.Contract.getDeployTransaction(linkedListJson.bytecode, linkedListJson.abi);
     let linkedListAddress = await runDeployment(wallet, linkedListDeployTxn, linkedListJson.contractName);
 
     // Deploy DataContract
@@ -198,6 +198,8 @@ run = async function () {
 
     let tokenInstance = new ethers.Contract(tokenExtendedAddress, tokenJson.abi, wallet);
 
+    console.log(".... Token Address: " + tokenInstance.address);
+
     // Default Setters
     let setOverDepositTokensRecipientTxn = await vestingInstance.setOverDepositTokensRecipient(overDepositTokensRecipient, overrideOptions);
     await logger(vestingJson.contractName, setOverDepositTokensRecipientTxn.hash, "setOverDepositTokensRecipient");
@@ -214,7 +216,7 @@ run = async function () {
     let setListerTxn = await crowdsaleInstance.setLister(lister, overrideOptions);
     await logger(icoCappedRefundableCrowdsaleJson.contractName, setListerTxn.hash, "setLister");
 
-    let setKYCUserOwnerTxn = await KYCVerificationInstance.setKYCUserOwner(kycAdmin, overrideOptions);
+    let setKYCUserOwnerTxn = await KYCVerificationInstance.setKYCUserOwner(owner, overrideOptions);
     await logger(KYCVerificationJson.contractName, setKYCUserOwnerTxn.hash, "setKYCUserOwner");
 
     // KYC Limits - Anonymous
@@ -282,6 +284,9 @@ run = async function () {
 
     let setUserManagerContractTxn = await crowdsaleInstance.setUserManagerContract(userManagerInstance.address, overrideOptions);
     await logger(icoCappedRefundableCrowdsaleJson.contractName, setUserManagerContractTxn.hash, "setUserManagerContract");
+
+    let setKYCUserOwnerTxn2 = await KYCVerificationInstance.setKYCUserOwner(kycAdmin, overrideOptions);
+    await logger(KYCVerificationJson.contractName, setKYCUserOwnerTxn2.hash, "setKYCUserOwner");
 
     // DataContract
     let transferOwnershipDataContractTxn = await dataContractInstance.transferOwnership(ownerMultiSigWalletAddress, overrideOptions);
