@@ -246,9 +246,8 @@ run = async function () {
     await logger(userFactoryJson.contractName, setHookOperatorAddressTxn.hash, "setHookOperatorAddress");
     let setKYCVerificationInstanceTxn = await userFactoryInstance.setKYCVerificationInstance(KYCVerificationInstance.address, overrideOptions);
     await logger(userFactoryJson.contractName, setKYCVerificationInstanceTxn.hash, "setKYCVerificationInstance");
-    // TODO Uncomment
-    // let setUsersBatchLimitTxn = await userFactoryInstance.setUsersBatchLimit(createUsersBatchLimit, overrideOptions);
-    // await logger(userFactoryJson.contractName, setUsersBatchLimitTxn.hash, "setUsersBatchLimit");
+    let setUsersBatchLimitTxn = await userFactoryInstance.setUsersBatchLimit(createUsersBatchLimit, overrideOptions);
+    await logger(userFactoryJson.contractName, setUsersBatchLimitTxn.hash, "setUsersBatchLimit");
 
     setDataContractTxn = await userManagerInstance.setDataContract(dataContractInstance.address, overrideOptions);
     await logger(userManagerJson.contractName, setDataContractTxn.hash, "setDataContract");
